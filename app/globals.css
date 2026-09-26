@@ -1,26 +1,194 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ─── BearFit palette (from Brand & UI Kit) ─────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #fff8f0;
+  --card: #ffffff;
+  --soft: #fff1e3;
+  --text: #2b2335;
+  --muted: #6b6275;
+  --line: #efe3d6;
+  --ink: #2b2335;
+  --on-grape: #ffffff;
+
+  --mango: #ff8a3d;
+  --mint: #3ccb9a;
+  --grape: #6a5ae0;
+  --sky: #4db5ff;
+  --berry: #ff6b8b;
+  --sun: #ffc940;
+
+  --mango-s: #ffe6d3;
+  --mint-s: #d9f6ea;
+  --grape-s: #e9e6ff;
+  --sky-s: #ddf0ff;
+  --berry-s: #ffe0e7;
+  --sun-s: #fff3cc;
+
+  --mango-d: #b4501a;
+  --mint-d: #11775a;
+  --grape-d: #5143c4;
+  --sky-d: #1f6fa8;
+  --berry-d: #b8304f;
+  --sun-d: #8a6200;
+
+  --shadow-float: 0 12px 28px rgba(43, 35, 53, 0.22);
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --bg: #16131d;
+  --card: #221e2c;
+  --soft: #2c2738;
+  --text: #f6f1ea;
+  --muted: #b8afc4;
+  --line: #3a3348;
+  --ink: #1a1426;
+  --on-grape: #1a1426;
+
+  --mango: #ff9a55;
+  --mint: #4fe0ae;
+  --grape: #8b7dff;
+  --sky: #6cc4ff;
+  --berry: #ff7f9c;
+  --sun: #ffd460;
+
+  --mango-s: #3a2a22;
+  --mint-s: #1e3530;
+  --grape-s: #2a2745;
+  --sky-s: #1d2f40;
+  --berry-s: #3a2230;
+  --sun-s: #3a3322;
+
+  --mango-d: #ffb07a;
+  --mint-d: #6fe8be;
+  --grape-d: #b3a9ff;
+  --sky-d: #8fd2ff;
+  --berry-d: #ff9db3;
+  --sun-d: #ffd460;
+
+  --shadow-float: 0 12px 28px rgba(0, 0, 0, 0.45);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-soft: var(--soft);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-on-grape: var(--on-grape);
+
+  --color-mango: var(--mango);
+  --color-mint: var(--mint);
+  --color-grape: var(--grape);
+  --color-sky: var(--sky);
+  --color-berry: var(--berry);
+  --color-sun: var(--sun);
+
+  --color-mango-s: var(--mango-s);
+  --color-mint-s: var(--mint-s);
+  --color-grape-s: var(--grape-s);
+  --color-sky-s: var(--sky-s);
+  --color-berry-s: var(--berry-s);
+  --color-sun-s: var(--sun-s);
+
+  --color-mango-d: var(--mango-d);
+  --color-mint-d: var(--mint-d);
+  --color-grape-d: var(--grape-d);
+  --color-sky-d: var(--sky-d);
+  --color-berry-d: var(--berry-d);
+  --color-sun-d: var(--sun-d);
+
+  --font-sans: var(--font-jakarta), "Segoe UI", system-ui, sans-serif;
+  --font-display: var(--font-fredoka), "Trebuchet MS", sans-serif;
+
+  --shadow-float: var(--shadow-float);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* prevents iOS zoom on focus; utilities can still override */
+  }
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+:focus-visible {
+  outline: 3px solid var(--grape);
+  outline-offset: 2px;
+}
+
+@keyframes beru-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  25% {
+    transform: translateY(-8px) rotate(-4deg);
+  }
+  75% {
+    transform: translateY(-4px) rotate(4deg);
+  }
+}
+.animate-beru {
+  animation: beru-bounce 1.1s ease-in-out infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+.animate-pulse-ring {
+  animation: pulse-ring 1.4s ease-out infinite;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-beru,
+  .animate-pulse-ring,
+  .animate-rise {
+    animation: none;
+  }
 }

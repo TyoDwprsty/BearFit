@@ -1,0 +1,470 @@
+// ════════════════════════════════════════════════════════════════════
+// BearFit database schema — source of truth for tables, enums, indexes, FKs.
+//
+// Prisma is used for schema + migrations only. The app reads/writes through
+// Supabase (supabase-js) so Row Level Security keeps applying per user.
+// Things Prisma can't model (RLS policies, SQL functions/RPCs, triggers,
+// CHECK constraints, grants) live as hand-written SQL inside migrations.
+//
+// Workflow: edit this file → `npm run db:new -- <name>` → review SQL →
+// `npm run db:deploy`. See README → "Database & migrasi".
+// ════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../node_modules/.prisma-bearfit"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+  schemas  = ["public", "auth"]
+}
+
+// ─── Supabase Auth (managed by Supabase, declared external in prisma.config.ts)
+model AuthUser {
+  id      String   @id @db.Uuid
+  profile Profile?
+
+  @@map("users")
+  @@schema("auth")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────
+enum AppRole {
+  member
+  coach
+
+  @@map("app_role")
+  @@schema("public")
+}
+
+enum MealType {
+  breakfast
+  lunch
+  dinner
+  snack
+
+  @@map("meal_type")
+  @@schema("public")
+}
+
+enum PortionSize {
+  small
+  medium
+  large
+
+  @@map("portion_size")
+  @@schema("public")
+}
+
+enum ExerciseCategory {
+  cardio
+  strength
+  flexibility
+
+  @@map("exercise_category")
+  @@schema("public")
+}
+
+enum IntensityLevel {
+  light
+  medium
+  hard
+
+  @@map("intensity_level")
+  @@schema("public")
+}
+
+enum LinkStatus {
+  pending
+  active
+  rejected
+  ended
+
+  @@map("link_status")
+  @@schema("public")
+}
+
+enum ReminderKind {
+  workout
+  water
+  meal
+  stretch
+  recap
+  custom
+
+  @@map("reminder_kind")
+  @@schema("public")
+}
+
+// ─── Profiles & targets ──────────────────────────────────────────────
+model Profile {
+  id               String   @id @db.Uuid
+  email            String?
+  full_name        String   @default("")
+  avatar_url       String?
+  is_member        Boolean  @default(false)
+  is_coach         Boolean  @default(false)
+  active_role      AppRole?
+  onboarded        Boolean  @default(false)
+  locale           String   @default("id")
+  timezone         String   @default("Asia/Jakarta")
+  coach_code       String?  @unique
+  coach_bio        String?
+  height_cm        Decimal? @db.Decimal(5, 1)
+  alarm_vibrate    Boolean  @default(true)
+  alarm_snooze_min Int      @default(10)
+  alarm_tone       String   @default("beru")
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  user AuthUser @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  targets                  Targets?        @relation("TargetsOwner")
+  targets_updated          Targets[]       @relation("TargetsUpdatedBy")
+  links_as_coach           CoachLink[]     @relation("LinkCoach")
+  links_as_member          CoachLink[]     @relation("LinkMember")
+  exercises_created        Exercise[]
+  plans                    WorkoutPlan[]   @relation("PlanMember")
+  plans_created            WorkoutPlan[]   @relation("PlanCreatedBy")
+  items_added              WorkoutItem[]
+  programs                 Program[]
+  member_programs          MemberProgram[] @relation("MemberProgramMember")
+  member_programs_as_coach MemberProgram[] @relation("MemberProgramCoach")
+  meals                    Meal[]
+  meal_comments            MealComment[]
+  meal_likes               MealLike[]
+  water_logs               WaterLog[]
+  weight_logs              WeightLog[]
+  reminders                Reminder[]      @relation("ReminderUser")
+  reminders_created        Reminder[]      @relation("ReminderCreatedBy")
+  push_subscriptions       PushSubscription[]
+  messages_sent            Message[]       @relation("MessageSender")
+  messages_received        Message[]       @relation("MessageRecipient")
+  notifications            Notification[]  @relation("NotificationUser")
+  notifications_acted      Notification[]  @relation("NotificationActor")
+
+  @@map("profiles")
+  @@schema("public")
+}
+
+model Targets {
+  user_id          String   @id @db.Uuid
+  kcal             Int      @default(2000)
+  protein_g        Int      @default(90)
+  carbs_g          Int      @default(250)
+  fat_g            Int      @default(65)
+  workout_min      Int      @default(40)
+  water_glasses    Int      @default(8)
+  meals            Int      @default(4)
+  target_weight_kg Decimal? @db.Decimal(5, 1)
+  updated_by       String?  @db.Uuid
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  user       Profile  @relation("TargetsOwner", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  updated_by_profile Profile? @relation("TargetsUpdatedBy", fields: [updated_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@map("targets")
+  @@schema("public")
+}
+
+// ─── Coach ↔ member links ────────────────────────────────────────────
+model CoachLink {
+  id           String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coach_id     String     @db.Uuid
+  member_id    String     @db.Uuid
+  status       LinkStatus @default(pending)
+  initiated_by AppRole
+  created_at   DateTime   @default(now()) @db.Timestamptz(6)
+  responded_at DateTime?  @db.Timestamptz(6)
+
+  coach  Profile @relation("LinkCoach", fields: [coach_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  member Profile @relation("LinkMember", fields: [member_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([member_id], map: "coach_links_one_active", where: raw("(status = 'active'::link_status)"))
+  @@unique([coach_id, member_id], map: "coach_links_one_pending", where: raw("(status = 'pending'::link_status)"))
+  @@index([coach_id, status], map: "coach_links_coach")
+  @@map("coach_links")
+  @@schema("public")
+}
+
+// ─── Exercises, plans & programs ─────────────────────────────────────
+model Exercise {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug         String?          @unique
+  name_id      String
+  name_en      String
+  category     ExerciseCategory
+  intensity    IntensityLevel   @default(light)
+  sets         Int?
+  reps         Int?
+  duration_sec Int?
+  minutes      Int              @default(10)
+  video_url    String?
+  created_by   String?          @db.Uuid
+  created_at   DateTime         @default(now()) @db.Timestamptz(6)
+
+  creator       Profile?      @relation(fields: [created_by], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  workout_items WorkoutItem[]
+  program_items ProgramItem[]
+
+  @@map("exercises")
+  @@schema("public")
+}
+
+model WorkoutPlan {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id  String   @db.Uuid
+  plan_date  DateTime @db.Date
+  source     String   @default("member")
+  note       String?
+  created_by String?  @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  member  Profile       @relation("PlanMember", fields: [member_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  creator Profile?      @relation("PlanCreatedBy", fields: [created_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  items   WorkoutItem[]
+
+  @@unique([member_id, plan_date])
+  @@map("workout_plans")
+  @@schema("public")
+}
+
+model WorkoutItem {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  plan_id      String           @db.Uuid
+  exercise_id  String?          @db.Uuid
+  name_id      String
+  name_en      String
+  category     ExerciseCategory
+  intensity    IntensityLevel   @default(light)
+  sets         Int?
+  reps         Int?
+  duration_sec Int?
+  minutes      Int              @default(10)
+  position     Int              @default(0)
+  done_at      DateTime?        @db.Timestamptz(6)
+  added_by     String?          @db.Uuid
+  created_at   DateTime         @default(now()) @db.Timestamptz(6)
+
+  plan     WorkoutPlan @relation(fields: [plan_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  exercise Exercise?   @relation(fields: [exercise_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  adder    Profile?    @relation(fields: [added_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([plan_id], map: "workout_items_plan")
+  @@index([done_at], map: "workout_items_done", where: raw("(done_at IS NOT NULL)"))
+  @@map("workout_items")
+  @@schema("public")
+}
+
+model Program {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  coach_id    String   @db.Uuid
+  name        String
+  description String?
+  weeks       Int      @default(8)
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+
+  coach           Profile         @relation(fields: [coach_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  items           ProgramItem[]
+  member_programs MemberProgram[]
+
+  @@map("programs")
+  @@schema("public")
+}
+
+model ProgramItem {
+  id          String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  program_id  String @db.Uuid
+  day_of_week Int    @db.SmallInt
+  exercise_id String @db.Uuid
+  position    Int    @default(0)
+
+  program  Program  @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  exercise Exercise @relation(fields: [exercise_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([program_id, day_of_week], map: "program_items_program")
+  @@map("program_items")
+  @@schema("public")
+}
+
+model MemberProgram {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  member_id  String   @db.Uuid
+  program_id String   @db.Uuid
+  coach_id   String   @db.Uuid
+  start_date DateTime @db.Date
+  active     Boolean  @default(true)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  member  Profile @relation("MemberProgramMember", fields: [member_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  program Program @relation(fields: [program_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  coach   Profile @relation("MemberProgramCoach", fields: [coach_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([member_id], map: "member_programs_one_active", where: raw("active"))
+  @@map("member_programs")
+  @@schema("public")
+}
+
+// ─── Food, water, weight ─────────────────────────────────────────────
+model Meal {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String      @db.Uuid
+  meal_type        MealType
+  eaten_at         DateTime    @default(now()) @db.Timestamptz(6)
+  caption          String      @default("")
+  portion          PortionSize @default(medium)
+  tags             String[]    @default([])
+  photo_key        String?
+  photo_url        String?
+  calories         Int?
+  protein_g        Decimal?    @db.Decimal(6, 1)
+  carbs_g          Decimal?    @db.Decimal(6, 1)
+  fat_g            Decimal?    @db.Decimal(6, 1)
+  ai_estimated     Boolean     @default(false)
+  share_with_coach Boolean     @default(true)
+  created_at       DateTime    @default(now()) @db.Timestamptz(6)
+
+  user     Profile       @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  comments MealComment[]
+  likes    MealLike[]
+
+  @@index([user_id, eaten_at(sort: Desc)], map: "meals_user_time")
+  @@map("meals")
+  @@schema("public")
+}
+
+model MealComment {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meal_id    String   @db.Uuid
+  author_id  String   @db.Uuid
+  body       String
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  meal   Meal    @relation(fields: [meal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  author Profile @relation(fields: [author_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([meal_id, created_at], map: "meal_comments_meal")
+  @@map("meal_comments")
+  @@schema("public")
+}
+
+model MealLike {
+  meal_id    String   @db.Uuid
+  user_id    String   @db.Uuid
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  meal Meal    @relation(fields: [meal_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user Profile @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([meal_id, user_id])
+  @@map("meal_likes")
+  @@schema("public")
+}
+
+model WaterLog {
+  user_id  String   @db.Uuid
+  log_date DateTime @db.Date
+  glasses  Int      @default(0)
+
+  user Profile @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, log_date])
+  @@map("water_logs")
+  @@schema("public")
+}
+
+model WeightLog {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  log_date   DateTime @db.Date
+  weight_kg  Decimal  @db.Decimal(5, 1)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  user Profile @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, log_date])
+  @@map("weight_logs")
+  @@schema("public")
+}
+
+// ─── Reminders & push ────────────────────────────────────────────────
+model Reminder {
+  id               String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String       @db.Uuid
+  kind             ReminderKind @default(custom)
+  label            String
+  remind_time      DateTime     @db.Time(6)
+  days             Int[]        @default([0, 1, 2, 3, 4, 5, 6]) @db.SmallInt
+  repeat_every_min Int?
+  repeat_until     DateTime?    @db.Time(6)
+  enabled          Boolean      @default(true)
+  snooze_until     DateTime?    @db.Timestamptz(6)
+  last_fired_at    DateTime?    @db.Timestamptz(6)
+  created_by       String?      @db.Uuid
+  created_at       DateTime     @default(now()) @db.Timestamptz(6)
+
+  user    Profile  @relation("ReminderUser", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  creator Profile? @relation("ReminderCreatedBy", fields: [created_by], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([enabled], map: "reminders_enabled", where: raw("enabled"))
+  @@map("reminders")
+  @@schema("public")
+}
+
+model PushSubscription {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String   @db.Uuid
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  user_agent String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+
+  user Profile @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("push_subscriptions")
+  @@schema("public")
+}
+
+// ─── Chat & notifications ────────────────────────────────────────────
+model Message {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sender_id    String    @db.Uuid
+  recipient_id String    @db.Uuid
+  body         String    @default("")
+  image_key    String?
+  image_url    String?
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  read_at      DateTime? @db.Timestamptz(6)
+
+  sender    Profile @relation("MessageSender", fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  recipient Profile @relation("MessageRecipient", fields: [recipient_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([sender_id, recipient_id, created_at(sort: Desc)], map: "messages_sender_recipient")
+  @@index([recipient_id, sender_id, created_at(sort: Desc)], map: "messages_recipient_sender")
+  @@index([recipient_id], map: "messages_recipient_unread", where: raw("(read_at IS NULL)"))
+  @@map("messages")
+  @@schema("public")
+}
+
+model Notification {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String    @db.Uuid
+  actor_id   String?   @db.Uuid
+  kind       String
+  title      String
+  body       String?
+  url        String?
+  read_at    DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  user  Profile  @relation("NotificationUser", fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  actor Profile? @relation("NotificationActor", fields: [actor_id], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([user_id, created_at(sort: Desc)], map: "notifications_user")
+  @@map("notifications")
+  @@schema("public")
+}
