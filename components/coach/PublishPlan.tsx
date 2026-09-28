@@ -5,6 +5,7 @@ import { publishPlan } from "@/app/actions/workout";
 import { Icon } from "@/components/Icon";
 import { useI18n } from "@/components/I18nProvider";
 import { btn, cn, input } from "@/components/ui";
+import { useProgress } from "@/components/feedback/NavigationProgress";
 
 /** Coach: note for the member + "save & notify". */
 export function PublishPlan({ memberId, date, note }: { memberId: string; date: string; note: string }) {
@@ -12,6 +13,7 @@ export function PublishPlan({ memberId, date, note }: { memberId: string; date: 
   const [value, setValue] = useState(note);
   const [done, setDone] = useState(false);
   const [pending, start] = useTransition();
+  useProgress(pending);
   return (
     <div className="flex flex-col gap-2 rounded-[22px] border border-line bg-card p-3.5">
       <label className="flex flex-col gap-1.5">
@@ -21,6 +23,7 @@ export function PublishPlan({ memberId, date, note }: { memberId: string; date: 
       <button
         type="button"
         disabled={pending}
+        aria-busy={pending}
         onClick={() =>
           start(async () => {
             const res = await publishPlan(memberId, date, value);

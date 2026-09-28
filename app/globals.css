@@ -113,6 +113,8 @@
 html {
   -webkit-tap-highlight-color: transparent;
   text-size-adjust: 100%;
+  /* Scroll yes, pinch / double-tap zoom no (app-like PWA). */
+  touch-action: pan-x pan-y;
 }
 
 body {
@@ -120,6 +122,10 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* Long names, e-mails & URLs wrap instead of pushing the page sideways. */
+  overflow-wrap: break-word;
+  /* Safety net against sideways scrolling; `clip` (unlike hidden) keeps sticky working. */
+  overflow-x: clip;
 }
 
 @layer base {
@@ -185,10 +191,149 @@ input[type="number"]::-webkit-outer-spin-button {
   animation: rise 0.35s ease-out both;
 }
 
+/* ─── Loading feedback ─────────────────────────────────────────────── */
+
+/* Top progress bar (components/feedback/NavigationProgress.tsx). */
+.nav-progress {
+  pointer-events: none;
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 90;
+  height: 3px;
+}
+.nav-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--grape), var(--mango));
+  box-shadow: 0 0 10px var(--grape);
+  transform-origin: left;
+  transform: scaleX(1);
+  opacity: 0;
+  transition: opacity 0.35s ease 0.15s;
+}
+.nav-progress[data-busy] .nav-progress-bar {
+  opacity: 1;
+  transition: none;
+  /* Short delay so instant (prefetched) navigations don't flash. */
+  animation: nav-trickle 12s cubic-bezier(0.08, 0.75, 0.25, 1) 0.12s both;
+}
+@keyframes nav-trickle {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(0.94);
+  }
+}
+
+/* Page-change overlay: Beru in the middle over the blurred current page. */
+.nav-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  visibility: hidden;
+  pointer-events: none;
+}
+.nav-overlay[data-busy] {
+  visibility: visible;
+  pointer-events: auto; /* swallow double taps while the next page loads */
+  background: color-mix(in srgb, var(--bg) 45%, transparent);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  /* Short delay so instant (prefetched) navigations don't flash. */
+  animation: nav-overlay-in 0.2s ease-out 0.15s both;
+}
+@keyframes nav-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Form validation (components/feedback/FormValidation.tsx) */
+input[aria-invalid="true"],
+textarea[aria-invalid="true"],
+select[aria-invalid="true"] {
+  border-color: var(--berry);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--berry) 25%, transparent);
+}
+.form-tip {
+  position: fixed;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 6px 14px 6px 8px;
+  border-radius: 18px;
+  background: var(--berry);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.3;
+  box-shadow: var(--shadow-float);
+  animation: rise 0.25s ease-out both;
+}
+.form-tip::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--arrow-x, 22px) - 7px);
+  width: 14px;
+  height: 14px;
+  background: inherit;
+  border-radius: 3px;
+  transform: rotate(45deg);
+}
+.form-tip[data-side="below"]::before {
+  top: -6px;
+}
+.form-tip[data-side="above"]::before {
+  bottom: -6px;
+}
+
+/* Inline spinner for any button that is waiting on the server: <button aria-busy>. */
+button[aria-busy="true"] {
+  cursor: progress;
+}
+button[aria-busy="true"]::after {
+  content: "";
+  flex-shrink: 0;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: bf-spin 0.7s linear infinite;
+}
+@keyframes bf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes skeleton {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.animate-skeleton {
+  animation: skeleton 1.4s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-beru,
   .animate-pulse-ring,
-  .animate-rise {
+  .animate-rise,
+  .animate-skeleton {
     animation: none;
   }
 }

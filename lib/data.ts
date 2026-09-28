@@ -48,10 +48,59 @@ export async function getActiveProgram(db: DB, memberId: string) {
 }
 
 /** 1-based day number within an assigned program (or null when outside it). */
-export function programDay(assignment: MemberProgram, program: Program, date: string): number | null {
+export function programDay(assignment: MemberProgram, program: Pick<Program, "weeks">, date: string): number | null {
   const d = diffDays(date, assignment.start_date);
-  if (d < 0 || d >= program.weeks * 7) return null;
+  if (d < 0 || (program.weeks != null && d >= program.weeks * 7)) return null;
   return d + 1;
+}
+
+/** The member's active program with its weekly template, grouped by weekday (0 = Sunday). */
+export interface ProgramSchedule {
+  assignment: MemberProgram;
+  program: Program;
+  byWeekday: Map<number, Exercise[]>;
+}
+
+export async function getProgramSchedule(db: DB, memberId: string): Promise<ProgramSchedule | null> {
+  const active = await getActiveProgram(db, memberId);
+  if (!active) return null;
+  const { data } = await db
+    .from("program_items")
+    .select("day_of_week, position, exercises(*)")
+    .eq("program_id", active.program.id)
+    .order("position");
+  const byWeekday = new Map<number, Exercise[]>();
+  for (const row of (data ?? []) as unknown as { day_of_week: number; exercises: Exercise | null }[]) {
+    if (!row.exercises) continue;
+    byWeekday.set(row.day_of_week, [...(byWeekday.get(row.day_of_week) ?? []), row.exercises]);
+  }
+  return { ...active, byWeekday };
+}
+
+/** Exercises the program schedules on `date` (before any plan row exists for it). */
+export function scheduledFor(schedule: ProgramSchedule | null, date: string): Exercise[] {
+  if (!schedule || programDay(schedule.assignment, schedule.program, date) === null) return [];
+  return schedule.byWeekday.get(weekdayOf(date)) ?? [];
+}
+
+/**
+ * After a program template or assignment changes, drop the program-generated
+ * plans from `fromDate` on that nobody has touched yet (no exercise done, nothing
+ * the member added, no pending request). They are rebuilt from the current
+ * template the next time the day is opened.
+ */
+export async function resetUntouchedProgramPlans(db: DB, memberIds: string[], fromDate: string) {
+  if (!memberIds.length) return;
+  const { data } = await db
+    .from("workout_plans")
+    .select("id, member_id, requested_at, workout_items(done_at, added_by)")
+    .in("member_id", memberIds)
+    .eq("source", "program")
+    .gte("plan_date", fromDate);
+  const stale = ((data ?? []) as { id: string; member_id: string; requested_at: string | null; workout_items: { done_at: string | null; added_by: string | null }[] }[])
+    .filter((p) => !p.requested_at && p.workout_items.every((i) => !i.done_at && i.added_by !== p.member_id))
+    .map((p) => p.id);
+  if (stale.length) await db.from("workout_plans").delete().in("id", stale);
 }
 
 export interface PlanWithItems {

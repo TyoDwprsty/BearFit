@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getViewer } from "@/lib/auth";
-import { isValidDateStr } from "@/lib/dates";
+import { getViewer, type Viewer } from "@/lib/auth";
+import { isValidDateStr, todayIn } from "@/lib/dates";
+import { resetUntouchedProgramPlans } from "@/lib/data";
 import { notify } from "@/lib/notify";
 
 async function coach() {
@@ -17,16 +18,24 @@ async function coach() {
 const programSchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(400).optional(),
-  weeks: z.coerce.number().int().min(1).max(52),
+  weeks: z.coerce.number().int().min(1).max(52).optional(),
+  repeat: z.literal("on").optional(),
 });
+
+/** Form → row: "repeat every week" is stored as weeks = null. */
+function programRow(d: z.infer<typeof programSchema>) {
+  if (!d.repeat && !d.weeks) return null;
+  return { name: d.name, description: d.description || null, weeks: d.repeat ? null : d.weeks! };
+}
 
 export async function createProgram(formData: FormData) {
   const viewer = await coach();
   const parsed = programSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
+  const row = parsed.success ? programRow(parsed.data) : null;
+  if (!row) return;
   const { data } = await viewer.supabase
     .from("programs")
-    .insert({ ...parsed.data, description: parsed.data.description || null, coach_id: viewer.userId })
+    .insert({ ...row, coach_id: viewer.userId })
     .select("id")
     .single();
   revalidatePath("/coach/programs");
@@ -36,13 +45,35 @@ export async function createProgram(formData: FormData) {
 export async function updateProgram(programId: string, formData: FormData) {
   const viewer = await coach();
   const parsed = programSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return;
-  await viewer.supabase
-    .from("programs")
-    .update({ ...parsed.data, description: parsed.data.description || null })
-    .eq("id", programId);
+  const row = parsed.success ? programRow(parsed.data) : null;
+  if (!row) return;
+  await viewer.supabase.from("programs").update(row).eq("id", programId);
+  // The length may have changed: rebuild upcoming days from the new settings.
+  await refreshProgramPlans(viewer, programId);
   revalidatePath(`/coach/programs/${programId}`);
   revalidatePath("/coach/programs");
+}
+
+/**
+ * Members following `programId` get their untouched upcoming days rebuilt from
+ * the current template, so template edits reach days that were already generated.
+ */
+async function refreshProgramPlans(viewer: Viewer, programId: string) {
+  const { data } = await viewer.supabase
+    .from("member_programs")
+    .select("member_id")
+    .eq("program_id", programId)
+    .eq("active", true);
+  const memberIds = (data ?? []).map((r) => r.member_id as string);
+  await resetUntouchedProgramPlans(viewer.supabase, memberIds, todayIn(viewer.profile.timezone));
+  revalidateMembers(memberIds);
+}
+
+function revalidateMembers(memberIds: string[]) {
+  if (!memberIds.length) return;
+  revalidatePath("/workout");
+  revalidatePath("/home");
+  for (const id of memberIds) revalidatePath(`/coach/members/${id}`, "layout");
 }
 
 export async function deleteProgram(programId: string) {
@@ -73,6 +104,7 @@ export async function toggleProgramExercise(programId: string, day: number, exer
       .eq("day_of_week", day);
     await db.from("program_items").insert({ program_id: programId, day_of_week: day, exercise_id: exerciseId, position: count ?? 0 });
   }
+  await refreshProgramPlans(viewer, programId);
   revalidatePath(`/coach/programs/${programId}`);
 }
 
@@ -83,6 +115,8 @@ export async function assignProgram(memberId: string, formData: FormData) {
   if (!programId || !isValidDateStr(startDate)) return;
   const db = viewer.supabase;
   await db.from("member_programs").update({ active: false }).eq("member_id", memberId).eq("coach_id", viewer.userId).eq("active", true);
+  // Days already generated from the previous program/start date make way for the new one.
+  await resetUntouchedProgramPlans(db, [memberId], todayIn(viewer.profile.timezone));
   const { error } = await db
     .from("member_programs")
     .insert({ member_id: memberId, program_id: programId, coach_id: viewer.userId, start_date: startDate, active: true });
@@ -105,6 +139,8 @@ export async function assignProgramToMember(programId: string, formData: FormDat
 export async function unassignProgram(memberId: string) {
   const viewer = await coach();
   await viewer.supabase.from("member_programs").update({ active: false }).eq("member_id", memberId).eq("coach_id", viewer.userId).eq("active", true);
+  await resetUntouchedProgramPlans(viewer.supabase, [memberId], todayIn(viewer.profile.timezone));
+  revalidateMembers([memberId]);
   revalidatePath(`/coach/members/${memberId}`);
   revalidatePath("/coach/programs", "layout");
 }

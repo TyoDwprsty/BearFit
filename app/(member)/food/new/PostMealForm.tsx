@@ -13,6 +13,8 @@ import type { DictKey } from "@/lib/i18n";
 import { blobToDataUrl, compressImage } from "@/lib/image-client";
 import { usePhotoUpload } from "@/lib/use-photo-upload";
 import type { MealType, NutritionEstimate, Portion } from "@/lib/types";
+import { startNavigation, useProgress } from "@/components/feedback/NavigationProgress";
+import { Alert } from "@/components/feedback/Alert";
 
 type Tag = (typeof MEAL_TAGS)[number];
 type AiState =
@@ -139,6 +141,7 @@ export function PostMealForm({
         setError(res.error === "photo_missing" ? t("post.uploadFail") : t("common.error"));
         return;
       }
+      startNavigation();
       router.push(`/food${res.date ? `?date=${res.date}` : ""}`);
       router.refresh();
     });
@@ -146,6 +149,7 @@ export function PostMealForm({
 
   const art = FOOD_ART_BY_MEAL[mealType];
   const busy = phase !== "idle";
+  useProgress(busy);
 
   return (
     <form
@@ -362,12 +366,10 @@ export function PostMealForm({
       </div>
 
       {error && (
-        <p role="alert" className="rounded-2xl bg-berry-s px-4 py-3 text-sm font-semibold text-berry-d">
-          {error}
-        </p>
+        <Alert>{error}</Alert>
       )}
 
-      <button type="submit" disabled={busy || ai.status === "loading"} className={cn(btn.mango, "h-[58px]")}>
+      <button type="submit" disabled={busy || ai.status === "loading"} aria-busy={busy} className={cn(btn.mango, "h-[58px]")}>
         {phase === "uploading"
           ? t("post.uploading")
           : phase === "posting"

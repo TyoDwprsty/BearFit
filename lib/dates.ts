@@ -105,6 +105,14 @@ export function isValidDateStr(s: string | undefined | null): s is string {
 
 const intlLocale = (locale: string) => (locale === "en" ? "en-GB" : "id-ID");
 
+/** "September 2026" */
+export function formatMonthYear(dateStr: string, locale: string): string {
+  const [y, m] = dateStr.split("-").map(Number);
+  return new Intl.DateTimeFormat(intlLocale(locale), { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(y, m - 1, 1)),
+  );
+}
+
 /** "Sabtu, 26 September" */
 export function formatLongDate(dateStr: string, locale: string): string {
   const [y, m, d] = dateStr.split("-").map(Number);

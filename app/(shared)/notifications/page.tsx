@@ -16,6 +16,7 @@ const KIND_ICON: Record<string, { icon: IconName; cls: string }> = {
   linkAccepted: { icon: "check", cls: "bg-mint-s text-mint-d" },
   joined: { icon: "members", cls: "bg-mint-s text-mint-d" },
   plan: { icon: "workout", cls: "bg-grape-s text-grape-d" },
+  planRequest: { icon: "workout", cls: "bg-sun-s text-sun-d" },
 };
 
 export default async function NotificationsPage() {

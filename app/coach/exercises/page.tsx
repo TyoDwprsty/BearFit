@@ -39,7 +39,7 @@ export default async function ExercisesPage() {
   return (
     <div className="flex flex-col gap-4">
       <BackHeader href="/coach/programs" backLabel={t("common.back")} title={t("exercises.title")} />
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
         <div className="flex flex-col gap-4">
           <section className="flex flex-col gap-2.5">
             <h2 className="font-display text-[19px] font-semibold">{t("exercises.mine")}</h2>
@@ -47,7 +47,7 @@ export default async function ExercisesPage() {
           </section>
           <section className="flex flex-col gap-2.5">
             <h2 className="font-display text-[19px] font-semibold">{t("exercises.builtin")}</h2>
-            <ul className="grid gap-2 xl:grid-cols-2">{builtin.map((x) => row(x, false))}</ul>
+            <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2">{builtin.map((x) => row(x, false))}</ul>
           </section>
         </div>
         <Card className="flex flex-col gap-3 lg:sticky lg:top-10">

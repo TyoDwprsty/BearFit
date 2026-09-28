@@ -23,7 +23,7 @@ export function WaterCard({ glasses, target }: { glasses: number; target: number
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-sky text-ink">
         <Icon name="water" size={20} strokeWidth={2} />
       </span>
-      <div className="flex flex-1 flex-col gap-2">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <span className="text-sm font-bold">{t("home.water", { a: optimistic, b: target })}</span>
         <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${segments}, minmax(0, 1fr))` }}>
           {Array.from({ length: segments }, (_, i) => (

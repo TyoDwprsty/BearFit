@@ -8,6 +8,8 @@ import { useConfirm } from "@/components/feedback/FeedbackProvider";
 import { useI18n } from "@/components/I18nProvider";
 import { Avatar, btn, cn, input } from "@/components/ui";
 import type { DictKey } from "@/lib/i18n";
+import { useProgress } from "@/components/feedback/NavigationProgress";
+import { Alert } from "@/components/feedback/Alert";
 
 type CoachHit = { id: string; full_name: string; avatar_url: string | null; coach_bio: string | null };
 
@@ -21,6 +23,7 @@ export function CoachConnect({ pending }: { pending: { linkId: string; coach: Co
   const [requested, setRequested] = useState<Set<string>>(new Set(pending.map((p) => p.coach.id)));
   const [msg, setMsg] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
   const [busy, start] = useTransition();
+  useProgress(busy);
 
   return (
     <div className="flex flex-col gap-4">
@@ -49,7 +52,7 @@ export function CoachConnect({ pending }: { pending: { linkId: string; coach: Co
             autoCapitalize="characters"
             className={cn(input, "font-display tracking-[0.2em] uppercase")}
           />
-          <button type="submit" disabled={busy || code.trim().length < 4} className={cn(btn.primary, "h-auto shrink-0 px-5 text-base")}>
+          <button type="submit" disabled={busy || code.trim().length < 4} aria-busy={busy} className={cn(btn.primary, "h-auto shrink-0 px-5 text-base")}>
             {t("profile.join")}
           </button>
         </div>
@@ -135,9 +138,7 @@ export function CoachConnect({ pending }: { pending: { linkId: string; coach: Co
       )}
 
       {msg && (
-        <p role="alert" className={cn("rounded-2xl px-4 py-2.5 text-sm font-semibold", msg.tone === "err" ? "bg-berry-s text-berry-d" : "bg-mint-s text-mint-d")}>
-          {msg.text}
-        </p>
+        <Alert tone={msg.tone === "err" ? "error" : "success"}>{msg.text}</Alert>
       )}
     </div>
   );
@@ -147,6 +148,7 @@ export function LeaveCoachButton({ linkId }: { linkId: string }) {
   const { t } = useI18n();
   const confirm = useConfirm();
   const [busy, start] = useTransition();
+  useProgress(busy);
   return (
     <button
       type="button"

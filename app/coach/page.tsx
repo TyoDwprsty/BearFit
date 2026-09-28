@@ -3,11 +3,10 @@ import { RequestActions } from "@/components/coach/RequestActions";
 import { Icon } from "@/components/Icon";
 import { InviteCard } from "@/components/profile/InviteCard";
 import { RoleSwitch } from "@/components/shell/RoleSwitch";
-import { Avatar, Card, cn, EmptyState, FilterChipLink, IconButton, SOFT } from "@/components/ui";
+import { Avatar, btn, Card, cn, EmptyState, FilterChipLink, IconButton, SOFT } from "@/components/ui";
 import { requireViewer } from "@/lib/auth";
 import { getCoachMembers, getMembersToday, memberDay } from "@/lib/coach";
-import { formatLongDate, todayIn } from "@/lib/dates";
-import { env } from "@/lib/env";
+import { addDays, formatLongDate, todayIn } from "@/lib/dates";
 import { firstName, relativeAgo } from "@/lib/format";
 import { makeT } from "@/lib/i18n";
 import type { MemberProgram, Program, Targets } from "@/lib/types";
@@ -25,7 +24,7 @@ export default async function CoachDashboard({ searchParams }: PageProps<"/coach
 
   const members = await getCoachMembers(supabase, userId);
   const ids = members.map((m) => m.id);
-  const [today, pendingRes, programsRes, targetsRes, unreadNotif] = await Promise.all([
+  const [today, pendingRes, programsRes, targetsRes, unreadNotif, workoutReqRes] = await Promise.all([
     getMembersToday(supabase, members),
     supabase.from("coach_links").select("id, member_id, created_at").eq("coach_id", userId).eq("status", "pending").order("created_at"),
     ids.length
@@ -33,7 +32,17 @@ export default async function CoachDashboard({ searchParams }: PageProps<"/coach
       : Promise.resolve({ data: [] }),
     ids.length ? supabase.from("targets").select("user_id, meals").in("user_id", ids) : Promise.resolve({ data: [] }),
     supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", userId).is("read_at", null),
+    ids.length
+      ? supabase
+          .from("workout_plans")
+          .select("id, member_id, plan_date")
+          .in("member_id", ids)
+          .not("requested_at", "is", null)
+          .gte("plan_date", addDays(todayIn(profile.timezone), -1))
+          .order("plan_date")
+      : Promise.resolve({ data: [] }),
   ]);
+  const workoutRequests = (workoutReqRes.data ?? []) as { id: string; member_id: string; plan_date: string }[];
 
   const pending = pendingRes.data ?? [];
   const { data: pendingProfiles } = pending.length
@@ -82,7 +91,7 @@ export default async function CoachDashboard({ searchParams }: PageProps<"/coach
         <StatTile value={String(stats.check)} label={t("coach.statCheck")} cls={SOFT.berry} />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <div className="flex flex-col gap-3">
           {pending.length > 0 && (
             <Card className="flex flex-col gap-2.5 border-sun bg-sun-s">
@@ -94,6 +103,31 @@ export default async function CoachDashboard({ searchParams }: PageProps<"/coach
                     <Avatar name={who?.full_name} src={who?.avatar_url} id={p.member_id} size={40} />
                     <span className="min-w-0 flex-1 truncate text-sm font-bold">{who?.full_name}</span>
                     <RequestActions linkId={p.id} />
+                  </div>
+                );
+              })}
+            </Card>
+          )}
+
+          {workoutRequests.length > 0 && (
+            <Card className="flex flex-col gap-2.5 border-grape/40 bg-grape-s">
+              <h2 className="font-display text-[17px] font-semibold">{t("coach.workoutRequests")}</h2>
+              {workoutRequests.map((r) => {
+                const who = members.find((m) => m.id === r.member_id);
+                return (
+                  <div key={r.id} className="flex items-center gap-3">
+                    <Avatar name={who?.full_name} src={who?.avatar_url} id={r.member_id} size={40} />
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-sm font-bold">{who?.full_name}</span>
+                      <span className="truncate text-xs text-muted">{formatLongDate(r.plan_date, profile.locale)}</span>
+                    </span>
+                    <Link
+                      href={`/coach/members/${r.member_id}/plan?date=${r.plan_date}`}
+                      className={cn(btn.small, "shrink-0 bg-grape text-on-grape")}
+                    >
+                      <Icon name="workout" size={16} />
+                      {t("coach.setPlan")}
+                    </Link>
                   </div>
                 );
               })}
@@ -116,7 +150,7 @@ export default async function CoachDashboard({ searchParams }: PageProps<"/coach
           {members.length === 0 ? (
             <EmptyState text={t("coach.noMembers")} />
           ) : (
-            <div className="grid gap-2.5 xl:grid-cols-2">
+            <div className="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
               {visible.map((m) => {
                 const s = today.get(m.id)!;
                 const mealsTarget = mealTargets.get(m.id) ?? 4;
@@ -167,7 +201,7 @@ export default async function CoachDashboard({ searchParams }: PageProps<"/coach
         </div>
 
         <div className="flex flex-col gap-3 lg:sticky lg:top-10">
-          {profile.coach_code && <InviteCard code={profile.coach_code} appUrl={env.appUrl} />}
+          {profile.coach_code && <InviteCard code={profile.coach_code} />}
         </div>
       </div>
     </div>

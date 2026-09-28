@@ -1,12 +1,22 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import { Icon } from "@/components/Icon";
+import { Icon, type IconName } from "@/components/Icon";
 import { useI18n } from "@/components/I18nProvider";
 import { cn } from "@/components/ui";
 import type { Role } from "@/lib/types";
 import { isActive, NAV } from "./nav-items";
+
+/** Nav icon that pulses while its link is still loading (instant tap feedback). */
+function NavIcon({ name, size, strokeWidth }: { name: IconName; size: number; strokeWidth?: number }) {
+  const { pending } = useLinkStatus();
+  return (
+    <span className={cn("flex transition-opacity", pending && "animate-skeleton")}>
+      <Icon name={name} size={size} strokeWidth={strokeWidth} />
+    </span>
+  );
+}
 
 /** Bottom navigation for phones (design: Komponen · NavBar). */
 export function BottomNav({ mode, badges }: { mode: Role; badges?: Partial<Record<string, number>> }) {
@@ -33,7 +43,7 @@ export function BottomNav({ mode, badges }: { mode: Role; badges?: Partial<Recor
                 on ? "bg-grape-s text-grape-d" : "text-muted",
               )}
             >
-              <Icon name={item.icon} size={22} strokeWidth={2.2} />
+              <NavIcon name={item.icon} size={22} strokeWidth={2.2} />
               <span className={cn("text-[11px]", on ? "font-extrabold" : "font-semibold")}>{t(item.label)}</span>
               {!!badge && (
                 <span className="absolute top-1.5 right-3 min-w-4 rounded-full bg-berry px-1 text-center text-[10px] leading-4 font-extrabold text-ink">
@@ -69,7 +79,7 @@ export function SideNavLinks({ mode, badges }: { mode: Role; badges?: Partial<Re
               on ? "bg-grape-s font-extrabold text-grape-d" : "font-semibold text-muted hover:bg-soft hover:text-text",
             )}
           >
-            <Icon name={item.icon} size={22} />
+            <NavIcon name={item.icon} size={22} />
             <span className="flex-1">{t(item.label)}</span>
             {!!badge && (
               <span className="rounded-full bg-berry px-2 text-xs leading-5 font-extrabold text-ink">{badge > 9 ? "9+" : badge}</span>

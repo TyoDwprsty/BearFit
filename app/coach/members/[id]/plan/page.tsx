@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { PublishPlan } from "@/components/coach/PublishPlan";
+import { Beru } from "@/components/Beru";
 import { Icon } from "@/components/Icon";
 import { WorkoutPicker } from "@/components/workout/WorkoutPicker";
 import { BackHeader } from "@/components/ui";
 import { requireViewer } from "@/lib/auth";
 import { requireMember } from "@/lib/coach";
 import { addDays, formatLongDate, isValidDateStr, todayIn } from "@/lib/dates";
-import { getExerciseCatalog, getPlan } from "@/lib/data";
+import { ensurePlanFromProgram, getExerciseCatalog } from "@/lib/data";
 import { firstName } from "@/lib/format";
 import { makeT } from "@/lib/i18n";
 
@@ -22,7 +23,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
   const sp = await searchParams;
   const date = isValidDateStr(sp.date as string) ? (sp.date as string) : addDays(today, 1);
 
-  const [plan, catalog] = await Promise.all([getPlan(supabase, id, date), getExerciseCatalog(supabase)]);
+  const [plan, catalog] = await Promise.all([ensurePlanFromProgram(supabase, id, date), getExerciseCatalog(supabase)]);
   const base = `/coach/members/${id}/plan`;
 
   return (
@@ -41,7 +42,16 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
         </Link>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      {plan.plan?.requested_at && (
+        <div className="flex items-center gap-3 rounded-[22px] border-2 border-dashed border-grape/40 bg-card p-3.5">
+          <span className="shrink-0">
+            <Beru pose="lift" size={52} />
+          </span>
+          <p className="text-sm leading-snug font-semibold">{t("coach.requestBanner", { name: firstName(member.full_name) })}</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <WorkoutPicker memberId={id} date={date} catalog={catalog} items={plan.items} mode="coach" footer={null} />
         <div className="lg:sticky lg:top-10">
           <PublishPlan memberId={id} date={date} note={plan.plan?.note ?? ""} />

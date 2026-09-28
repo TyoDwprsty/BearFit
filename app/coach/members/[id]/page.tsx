@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { assignProgram, unassignProgram } from "@/app/actions/coach";
 import { QuickNote } from "@/components/coach/QuickNote";
+import { DateField } from "@/components/DateField";
 import { ConfirmActionButton } from "@/components/feedback/ConfirmActionButton";
+import { SubmitButton } from "@/components/feedback/SubmitButton";
 import { CATEGORY_ICON, Icon } from "@/components/Icon";
 import { CommentForm, LikeButton } from "@/components/member/MealInteractions";
 import { MealPhoto } from "@/components/member/MealPhoto";
@@ -11,7 +13,7 @@ import { Avatar, BackHeader, btn, Card, Chip, cn, input, SegmentedLinks, SOFT } 
 import { requireViewer } from "@/lib/auth";
 import { memberDay, requireMember } from "@/lib/coach";
 import { addDays, formatClock, formatLongDate, formatShortDate, localDateOf, rangeUtc, todayIn, weekdayShort } from "@/lib/dates";
-import { getActiveProgram, getActivity, getMealsForDay, getPlan, sumNutrition } from "@/lib/data";
+import { ensurePlanFromProgram, getActiveProgram, getActivity, getMealsForDay, getProgramSchedule, scheduledFor, sumNutrition } from "@/lib/data";
 import { exerciseMeta, exerciseName, firstName } from "@/lib/format";
 import { makeT, type DictKey } from "@/lib/i18n";
 import { hydrateMeals } from "@/lib/meal-posts";
@@ -39,7 +41,7 @@ export default async function MemberDetailPage({ params, searchParams }: PagePro
     getActivity(supabase, id, tz, today, 90),
     supabase.from("targets").select("*").eq("user_id", id).single(),
     getMealsForDay(supabase, id, today, tz),
-    getPlan(supabase, id, today),
+    ensurePlanFromProgram(supabase, id, today),
   ]);
   const targets = targetsRes.data as Targets;
   const d = memberDay(member.since, tz, program);
@@ -75,7 +77,7 @@ export default async function MemberDetailPage({ params, searchParams }: PagePro
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_minmax(0,1fr)] lg:items-start">
         <div className="flex flex-col gap-4 lg:sticky lg:top-10">
           <Card className="flex flex-col gap-3.5">
             <div className="flex items-center gap-3.5">
@@ -297,7 +299,7 @@ export default async function MemberDetailPage({ params, searchParams }: PagePro
     name: string;
   }) {
     const upcoming = Array.from({ length: 7 }, (_, i) => addDays(today, i));
-    const [{ data: plans }, { data: myPrograms }] = await Promise.all([
+    const [{ data: plans }, { data: myPrograms }, schedule] = await Promise.all([
       supabase
         .from("workout_plans")
         .select("plan_date, source, workout_items(id, name_id, name_en, minutes)")
@@ -305,6 +307,7 @@ export default async function MemberDetailPage({ params, searchParams }: PagePro
         .gte("plan_date", upcoming[0])
         .lte("plan_date", upcoming[6]),
       supabase.from("programs").select("*").eq("coach_id", coachId).order("created_at"),
+      getProgramSchedule(supabase, memberId),
     ]);
     const byDate = new Map(
       ((plans ?? []) as { plan_date: string; source: string; workout_items: Pick<WorkoutItem, "id" | "name_id" | "name_en" | "minutes">[] }[]).map((p) => [
@@ -319,6 +322,8 @@ export default async function MemberDetailPage({ params, searchParams }: PagePro
           <h2 className="font-display text-[17px] font-semibold">{t("coach.upcoming")}</h2>
           {upcoming.map((date) => {
             const p = byDate.get(date);
+            // Days not generated yet still show what the program has planned.
+            const items = p ? p.workout_items : scheduledFor(schedule, date);
             return (
               <Link
                 key={date}
@@ -329,11 +334,7 @@ export default async function MemberDetailPage({ params, searchParams }: PagePro
                   {date === today ? t("common.today") : `${weekdayShort(date, profile.locale)}, ${formatShortDate(date, profile.locale)}`}
                 </span>
                 <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">
-                  {p?.workout_items.length
-                    ? p.workout_items.map((i) => exerciseName(i, profile.locale)).join(", ")
-                    : program
-                      ? `${t("nav.programs")}: ${program.program.name}`
-                      : t("coach.restDay")}
+                  {items.length ? items.map((i) => exerciseName(i, profile.locale)).join(", ") : t("coach.restDay")}
                 </span>
                 <span className="text-xs font-extrabold text-grape-d">{t("coach.editDay")}</span>
               </Link>
@@ -349,7 +350,7 @@ export default async function MemberDetailPage({ params, searchParams }: PagePro
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-sm font-bold">{program.program.name}</span>
                 <span className="text-xs text-muted">
-                  {formatLongDate(program.assignment.start_date, profile.locale)} · {t("programs.weeksN", { n: program.program.weeks })}
+                  {formatLongDate(program.assignment.start_date, profile.locale)} · {program.program.weeks ? t("programs.weeksN", { n: program.program.weeks }) : t("programs.forever")}
                 </span>
               </div>
               <ConfirmActionButton
@@ -365,7 +366,7 @@ export default async function MemberDetailPage({ params, searchParams }: PagePro
             <p className="text-sm text-muted">{t("coach.noProgram")}</p>
           )}
           {(myPrograms ?? []).length > 0 ? (
-            <form action={assignProgram.bind(null, memberId)} className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+            <form action={assignProgram.bind(null, memberId)} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
               <select name="program_id" required className={input} defaultValue={program?.program.id}>
                 {((myPrograms ?? []) as Program[]).map((p) => (
                   <option key={p.id} value={p.id}>
@@ -373,10 +374,10 @@ export default async function MemberDetailPage({ params, searchParams }: PagePro
                   </option>
                 ))}
               </select>
-              <input type="date" name="start_date" required defaultValue={today} aria-label={t("coach.startDate")} className={input} />
-              <button type="submit" className={cn(btn.primary, "h-auto min-h-12 text-base")}>
+              <DateField name="start_date" defaultValue={today} label={t("coach.startDate")} className={cn(input, "font-bold")} />
+              <SubmitButton className={cn(btn.primary, "h-auto min-h-12 text-base")}>
                 {t("coach.assign")}
-              </button>
+              </SubmitButton>
             </form>
           ) : (
             <Link href="/coach/programs" className={cn(btn.small, "self-start border border-line")}>

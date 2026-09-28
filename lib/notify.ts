@@ -13,7 +13,7 @@ import { sendPushToUser } from "@/lib/push";
 export async function notify(opts: {
   userId: string;
   actorId: string;
-  kind: "comment" | "like" | "message" | "linkRequest" | "linkAccepted" | "joined" | "plan";
+  kind: "comment" | "like" | "message" | "linkRequest" | "linkAccepted" | "joined" | "plan" | "planRequest";
   url: string;
   body?: string;
   push?: boolean;

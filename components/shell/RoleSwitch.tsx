@@ -6,11 +6,13 @@ import { Icon } from "@/components/Icon";
 import { useI18n } from "@/components/I18nProvider";
 import { cn } from "@/components/ui";
 import type { Role } from "@/lib/types";
+import { useProgress } from "@/components/feedback/NavigationProgress";
 
 /** Switch button shown to users who are both member & coach. */
 export function RoleSwitch({ current, className, compact }: { current: Role; className?: string; compact?: boolean }) {
   const { t } = useI18n();
   const [pending, start] = useTransition();
+  useProgress(pending, { page: true });
   const target: Role = current === "coach" ? "member" : "coach";
   const text = target === "coach" ? t("role.switchToCoach") : t("role.switchToMember");
   return (

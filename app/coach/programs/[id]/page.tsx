@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { assignProgramToMember, deleteProgram, unassignProgram, updateProgram } from "@/app/actions/coach";
 import { ProgramDayPicker } from "@/components/coach/ProgramDayPicker";
+import { ProgramLengthField } from "@/components/coach/ProgramLengthField";
+import { DateField } from "@/components/DateField";
 import { ConfirmActionButton } from "@/components/feedback/ConfirmActionButton";
+import { SubmitButton } from "@/components/feedback/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { Avatar, BackHeader, btn, Card, cn, input } from "@/components/ui";
 import { requireViewer } from "@/lib/auth";
@@ -43,7 +46,7 @@ export default async function ProgramEditPage({ params, searchParams }: PageProp
     <div className="flex flex-col gap-4">
       <BackHeader href="/coach/programs" backLabel={t("common.back")} title={program.name} />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-7 gap-1.5">
             {DAY_ORDER.map((d) => {
@@ -77,17 +80,14 @@ export default async function ProgramEditPage({ params, searchParams }: PageProp
                 <span className="text-sm font-bold">{t("programs.name")}</span>
                 <input name="name" defaultValue={program.name} required maxLength={80} className={input} />
               </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-bold">{t("programs.weeks")}</span>
-                <input name="weeks" type="number" min={1} max={52} defaultValue={program.weeks} required className={input} />
-              </label>
+              <ProgramLengthField defaultWeeks={program.weeks} />
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-bold">{t("programs.desc")}</span>
                 <textarea name="description" rows={2} maxLength={400} defaultValue={program.description ?? ""} className={cn(input, "resize-none")} />
               </label>
-              <button type="submit" className={cn(btn.primary, "h-12 text-base")}>
+              <SubmitButton className={cn(btn.primary, "h-12 text-base")}>
                 {t("common.save")}
-              </button>
+              </SubmitButton>
             </form>
             <ConfirmActionButton
               action={deleteProgram.bind(null, id)}
@@ -142,14 +142,14 @@ export default async function ProgramEditPage({ params, searchParams }: PageProp
                     </option>
                   ))}
                 </select>
-                <label className="flex items-center justify-between gap-3 rounded-[18px] border-[1.5px] border-line bg-card px-4 py-2">
+                <div className="flex items-center justify-between gap-3 rounded-[18px] border-[1.5px] border-line bg-card px-4 py-2">
                   <span className="text-sm font-bold">{t("coach.startDate")}</span>
-                  <input type="date" name="start_date" required defaultValue={todayIn(profile.timezone)} className="bg-transparent text-right text-sm font-bold focus:outline-none" />
-                </label>
-                <button type="submit" className={cn(btn.primary, "h-12 text-base")}>
+                  <DateField name="start_date" defaultValue={todayIn(profile.timezone)} label={t("coach.startDate")} className="min-h-9 text-sm font-bold" />
+                </div>
+                <SubmitButton className={cn(btn.primary, "h-12 text-base")}>
                   <Icon name="members" size={18} />
                   {t("coach.assign")}
-                </button>
+                </SubmitButton>
               </form>
             ) : (
               members.length === 0 && <p className="text-sm text-muted">{t("coach.noMembers")}</p>

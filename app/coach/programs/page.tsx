@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createProgram } from "@/app/actions/coach";
+import { SubmitButton } from "@/components/feedback/SubmitButton";
+import { ProgramLengthField } from "@/components/coach/ProgramLengthField";
 import { Icon } from "@/components/Icon";
 import { btn, Card, cn, EmptyState, input, PageTitle } from "@/components/ui";
 import { requireViewer } from "@/lib/auth";
@@ -33,7 +35,7 @@ export default async function ProgramsPage() {
         }
       />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="flex flex-col gap-2.5">
           {(programs ?? []).length === 0 ? (
             <EmptyState pose="lift" text={t("programs.empty")} />
@@ -46,7 +48,7 @@ export default async function ProgramsPage() {
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="truncate text-[15px] font-extrabold">{p.name}</span>
                   <span className="text-xs font-semibold text-muted">
-                    {t("programs.weeksN", { n: p.weeks })} · {t("programs.exercisesN", { n: count(items as { program_id: string }[], p.id) })} ·{" "}
+                    {p.weeks ? t("programs.weeksN", { n: p.weeks }) : t("programs.forever")} · {t("programs.exercisesN", { n: count(items as { program_id: string }[], p.id) })} ·{" "}
                     {t("programs.assignedN", { n: count(assigned, p.id) })}
                   </span>
                 </span>
@@ -63,20 +65,17 @@ export default async function ProgramsPage() {
               <span className="text-sm font-bold">{t("programs.name")}</span>
               <input name="name" required maxLength={80} placeholder={t("programs.namePh")} className={input} />
             </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-bold">{t("programs.weeks")}</span>
-              <input name="weeks" type="number" min={1} max={52} defaultValue={8} required className={input} />
-            </label>
+            <ProgramLengthField defaultWeeks={8} />
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-bold">
                 {t("programs.desc")} <span className="font-medium text-muted">({t("common.optional")})</span>
               </span>
               <textarea name="description" rows={2} maxLength={400} className={cn(input, "resize-none")} />
             </label>
-            <button type="submit" className={cn(btn.primary, "h-12 text-base")}>
+            <SubmitButton page className={cn(btn.primary, "h-12 text-base")}>
               <Icon name="plus" size={18} />
               {t("programs.new")}
-            </button>
+            </SubmitButton>
           </form>
         </Card>
       </div>

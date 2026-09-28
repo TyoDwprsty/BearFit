@@ -109,7 +109,7 @@ export default async function CommunityPage({ searchParams }: PageProps<"/commun
       />
       <p className="-mt-2 text-sm font-bold text-grape-d">{date === today ? t("common.today") : formatLongDate(date, profile.locale)}</p>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="flex flex-col gap-3 lg:order-2 lg:sticky lg:top-10">
           <SectionTitle>{t("community.progress")}</SectionTitle>
           <Card className="flex flex-col gap-3.5 p-4">

@@ -83,9 +83,25 @@ export async function uploadToStaging(blob: Blob): Promise<string> {
   try {
     put = await fetch(uploadUrl, { method: "PUT", headers: { "Content-Type": contentType }, body: blob });
   } catch {
-    // A network-level failure on PUT is almost always a missing R2 CORS rule.
-    throw new Error("upload blocked (check R2 bucket CORS for this origin)");
+    // A network-level failure on PUT is almost always a missing R2 CORS rule for
+    // this origin (new domain, preview deploy, LAN IP…). Go through our own API instead.
+    console.warn("[upload] direct R2 upload blocked — add this origin to the bucket CORS. Using server fallback.");
+    return uploadViaServer(key, blob, contentType);
   }
   if (!put.ok) throw new Error(`upload ${put.status}: ${(await put.text()).slice(0, 200)}`);
+  return key;
+}
+
+/** Same-origin fallback: the app server writes the staged object to R2. */
+async function uploadViaServer(key: string, blob: Blob, contentType: string): Promise<string> {
+  const res = await fetch(`/api/upload/direct?key=${encodeURIComponent(key)}`, {
+    method: "PUT",
+    headers: { "Content-Type": contentType },
+    body: blob,
+  });
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(`upload ${res.status} ${detail.error ?? ""}`.trim());
+  }
   return key;
 }

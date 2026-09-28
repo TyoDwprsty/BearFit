@@ -3,9 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { homeFor } from "@/lib/auth";
 import { LOCALE_COOKIE } from "@/lib/i18n";
 import type { Profile } from "@/lib/types";
+import { requestOrigin } from "@/lib/url";
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
+  const origin = requestOrigin(request);
   const code = searchParams.get("code");
   const role = searchParams.get("role");
   const next = searchParams.get("next");

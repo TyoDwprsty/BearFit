@@ -11,6 +11,8 @@ import { hhmm } from "@/lib/dates";
 import { reminderDays } from "@/lib/format";
 import type { DictKey } from "@/lib/i18n";
 import type { Reminder, ReminderKind } from "@/lib/types";
+import { useProgress } from "@/components/feedback/NavigationProgress";
+import { Alert } from "@/components/feedback/Alert";
 
 const KIND_COLOR: Record<ReminderKind, string> = {
   stretch: SOLID.mint,
@@ -50,7 +52,7 @@ export function ReminderList({ reminders, userId }: { reminders: Reminder[]; use
 
   return (
     <>
-      <div className="grid gap-2.5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
         {reminders.map((r) => {
           const on = enabled[r.id];
           return (
@@ -101,6 +103,7 @@ function ReminderEditor({ reminder, userId, onDone }: { reminder: Reminder | nul
   const confirm = useConfirm();
   const toast = useToast();
   const [pending, start] = useTransition();
+  useProgress(pending);
   const [kind, setKind] = useState<ReminderKind>(reminder?.kind ?? "workout");
   const [labelText, setLabel] = useState(reminder?.label ?? "");
   const [time, setTime] = useState(reminder ? hhmm(reminder.remind_time) : "07:00");
@@ -216,7 +219,7 @@ function ReminderEditor({ reminder, userId, onDone }: { reminder: Reminder | nul
         </label>
       </div>
 
-      {error && <p className="rounded-2xl bg-berry-s px-4 py-3 text-sm font-semibold text-berry-d">{error}</p>}
+      {error && <Alert>{error}</Alert>}
 
       <div className="flex gap-2">
         {reminder && (
@@ -238,7 +241,7 @@ function ReminderEditor({ reminder, userId, onDone }: { reminder: Reminder | nul
             <Icon name="trash" size={20} />
           </button>
         )}
-        <button type="submit" disabled={pending} className={cn(btn.primary, "flex-1")}>
+        <button type="submit" disabled={pending} aria-busy={pending} className={cn(btn.primary, "flex-1")}>
           {pending ? t("common.saving") : t("common.save")}
         </button>
       </div>

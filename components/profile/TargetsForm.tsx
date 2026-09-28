@@ -5,11 +5,14 @@ import { saveTargets } from "@/app/actions/tracking";
 import { useI18n } from "@/components/I18nProvider";
 import { btn, cn, input } from "@/components/ui";
 import type { Targets } from "@/lib/types";
+import { useProgress } from "@/components/feedback/NavigationProgress";
+import { Alert } from "@/components/feedback/Alert";
 
 /** Daily targets editor — used by the member (profile) and by the coach (member detail). */
 export function TargetsForm({ targets, userId }: { targets: Targets; userId?: string }) {
   const { t } = useI18n();
   const [state, action, pending] = useActionState(saveTargets, undefined);
+  useProgress(pending);
 
   const fields: { name: keyof Targets; label: string; step?: string }[] = [
     { name: "kcal", label: t("onb.kcal") },
@@ -42,12 +45,12 @@ export function TargetsForm({ targets, userId }: { targets: Targets; userId?: st
         ))}
       </div>
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={pending} className={cn(btn.primary, "h-12 text-base")}>
+        <button type="submit" disabled={pending} aria-busy={pending} className={cn(btn.primary, "h-12 text-base")}>
           {pending ? t("common.saving") : t("common.save")}
         </button>
         {state?.ok && <span className="text-sm font-bold text-mint-d">✓ {t("common.saved")}</span>}
-        {state?.error && <span className="text-sm font-bold text-berry-d">{t("common.error")}</span>}
       </div>
+      {state?.error && <Alert>{t("common.error")}</Alert>}
     </form>
   );
 }

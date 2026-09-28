@@ -62,7 +62,7 @@ export async function AppShell({
         </div>
       </aside>
 
-      <main className="mx-auto w-full max-w-xl px-5 pt-6 pb-36 lg:ml-[260px] lg:max-w-none lg:px-10 lg:pt-10 lg:pb-16">
+      <main className="mx-auto w-full max-w-xl px-5 pt-6 pb-36 lg:ml-[260px] lg:w-auto lg:max-w-none lg:px-10 lg:pt-10 lg:pb-16">
         <div className="mx-auto w-full lg:max-w-5xl">{children}</div>
       </main>
 

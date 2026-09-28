@@ -84,7 +84,7 @@ export default async function ProgressPage({ searchParams }: PageProps<"/progres
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Streak */}
         <section className="flex flex-col gap-4 rounded-[28px] bg-berry-s p-[18px]">
           <div className="flex items-center gap-3.5">

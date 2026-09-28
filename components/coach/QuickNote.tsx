@@ -5,6 +5,7 @@ import { sendMessage } from "@/app/actions/chat";
 import { Icon } from "@/components/Icon";
 import { useI18n } from "@/components/I18nProvider";
 import { cn } from "@/components/ui";
+import { useProgress } from "@/components/feedback/NavigationProgress";
 
 /** "Kirim semangat cepat" — quick encouragement chips + note, sent as a chat message. */
 export function QuickNote({ memberId, memberName }: { memberId: string; memberName: string }) {
@@ -13,6 +14,7 @@ export function QuickNote({ memberId, memberName }: { memberId: string; memberNa
   const [msg, setMsg] = useState("");
   const [sent, setSent] = useState(false);
   const [pending, start] = useTransition();
+  useProgress(pending);
 
   const send = () =>
     start(async () => {

@@ -57,6 +57,14 @@ export async function presignUpload(key: string, contentType: string) {
 }
 
 /**
+ * Server-side upload into staging. Fallback for when the browser can't PUT to
+ * R2 directly (bucket CORS doesn't allow the current origin yet).
+ */
+export async function putStagedObject(key: string, contentType: string, body: Uint8Array) {
+  await r2().send(new PutObjectCommand({ Bucket: serverEnv.r2Bucket, Key: key, ContentType: contentType, Body: body }));
+}
+
+/**
  * Moves a staged upload owned by `userId` into its final folder.
  * Returns null when the key isn't a valid staged object of that user.
  */

@@ -73,6 +73,8 @@ export interface WorkoutPlan {
   source: "member" | "coach" | "program";
   note: string | null;
   created_by: string | null;
+  /** Member asked the coach to fill in this day (cleared when the coach saves). */
+  requested_at: string | null;
 }
 
 export interface WorkoutItem {
@@ -97,7 +99,8 @@ export interface Program {
   coach_id: string;
   name: string;
   description: string | null;
-  weeks: number;
+  /** Program length; null = repeats every week with no end date. */
+  weeks: number | null;
   created_at: string;
 }
 

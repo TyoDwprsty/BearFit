@@ -4,10 +4,12 @@ import { useActionState, useEffect, useRef } from "react";
 import { logWeight } from "@/app/actions/tracking";
 import { Icon } from "@/components/Icon";
 import { useI18n } from "@/components/I18nProvider";
+import { useProgress } from "@/components/feedback/NavigationProgress";
 
 export function WeightForm() {
   const { t } = useI18n();
   const [state, action, pending] = useActionState(logWeight, undefined);
+  useProgress(pending);
   const ref = useRef<HTMLFormElement>(null);
 
   useEffect(() => {

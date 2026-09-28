@@ -5,6 +5,7 @@ import { btn } from "@/components/ui";
 import { getViewer, homeFor } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { getT } from "@/lib/i18n/server";
+import { Alert } from "@/components/feedback/Alert";
 
 export default async function WelcomePage({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
@@ -44,9 +45,7 @@ export default async function WelcomePage({ searchParams }: PageProps<"/">) {
         <p className="text-base leading-relaxed text-muted">{t("welcome.body")}</p>
 
         {params.error && (
-          <p role="alert" className="rounded-2xl bg-berry-s px-4 py-3 text-sm font-semibold text-berry-d">
-            {params.error === "setup" ? t("setup.body") : t("welcome.authError")}
-          </p>
+          <Alert>{params.error === "setup" ? t("setup.body") : t("welcome.authError")}</Alert>
         )}
         {!configured && (
           <div className="rounded-2xl border-2 border-dashed border-line px-4 py-3 text-sm">

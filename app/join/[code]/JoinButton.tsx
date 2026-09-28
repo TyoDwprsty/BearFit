@@ -6,17 +6,21 @@ import { joinByCode } from "@/app/actions/links";
 import { useI18n } from "@/components/I18nProvider";
 import { btn } from "@/components/ui";
 import type { DictKey } from "@/lib/i18n";
+import { useProgress } from "@/components/feedback/NavigationProgress";
+import { Alert } from "@/components/feedback/Alert";
 
 export function JoinButton({ code, label }: { code: string; label: string }) {
   const { t } = useI18n();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  useProgress(pending, { page: true });
   return (
     <div className="flex w-full flex-col gap-2">
       <button
         type="button"
         disabled={pending}
+        aria-busy={pending}
         onClick={() =>
           start(async () => {
             const res = await joinByCode(code);
@@ -28,7 +32,7 @@ export function JoinButton({ code, label }: { code: string; label: string }) {
       >
         {label}
       </button>
-      {error && <p className="text-sm font-semibold text-berry-d">{error}</p>}
+      {error && <Alert>{error}</Alert>}
     </div>
   );
 }

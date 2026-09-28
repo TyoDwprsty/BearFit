@@ -8,10 +8,13 @@ import { useI18n } from "@/components/I18nProvider";
 import { btn, cn, input } from "@/components/ui";
 import { CATEGORIES, INTENSITIES } from "@/lib/format";
 import type { DictKey } from "@/lib/i18n";
+import { useProgress } from "@/components/feedback/NavigationProgress";
+import { Alert } from "@/components/feedback/Alert";
 
 export function ExerciseForm() {
   const { t } = useI18n();
   const [state, action, pending] = useActionState(createExercise, undefined);
+  useProgress(pending);
   const ref = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (state?.ok) ref.current?.reset();
@@ -71,9 +74,9 @@ export function ExerciseForm() {
         {num("duration_sec", t("exercises.duration"))}
         {num("minutes", t("exercises.minutes"), 10)}
       </div>
-      {state?.error && <p className="text-sm font-semibold text-berry-d">{t("common.error")}</p>}
-      {state?.ok && <p className="text-sm font-semibold text-mint-d">✓ {t("common.saved")}</p>}
-      <button type="submit" disabled={pending} className={cn(btn.primary, "h-12 text-base")}>
+      {state?.error && <Alert>{t("common.error")}</Alert>}
+      {state?.ok && <Alert tone="success">{t("common.saved")}</Alert>}
+      <button type="submit" disabled={pending} aria-busy={pending} className={cn(btn.primary, "h-12 text-base")}>
         <Icon name="plus" size={18} />
         {t("common.add")}
       </button>
@@ -85,6 +88,7 @@ export function DeleteExerciseButton({ id, name }: { id: string; name: string })
   const { t } = useI18n();
   const confirm = useConfirm();
   const [pending, start] = useTransition();
+  useProgress(pending);
   return (
     <button
       type="button"

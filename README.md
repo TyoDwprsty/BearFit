@@ -72,7 +72,7 @@ Isi `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (mailto
 Buat API key di console.groq.com → `GROQ_API_KEY`. Model default `qwen/qwen3.8-27b` (vision); ganti lewat `GROQ_VISION_MODEL` bila Groq mengganti model.
 
 ### 5. Deploy ke Vercel (Hobby)
-1. Import repo → isi semua env (lihat `.env.example`), `NEXT_PUBLIC_APP_URL` = domain produksi. Dengan `DIRECT_URL` terisi, setiap deploy otomatis menjalankan `prisma migrate deploy` sebelum build (`npm run vercel-build`).
+1. Import repo → isi semua env (lihat `.env.example`). Dengan `DIRECT_URL` terisi, setiap deploy otomatis menjalankan `prisma migrate deploy` sebelum build (`npm run vercel-build`).
 2. Buat `CRON_SECRET` acak (mis. `openssl rand -hex 32`).
 
 ### 6. Penjadwal pengingat (pg_cron)

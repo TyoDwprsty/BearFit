@@ -7,6 +7,8 @@ import { useI18n } from "@/components/I18nProvider";
 import { Icon } from "@/components/Icon";
 import { btn, cn, input, label } from "@/components/ui";
 import type { Locale, Role } from "@/lib/types";
+import { useProgress } from "@/components/feedback/NavigationProgress";
+import { Alert } from "@/components/feedback/Alert";
 
 export function OnboardingForm({
   defaultName,
@@ -21,6 +23,7 @@ export function OnboardingForm({
 }) {
   const { t } = useI18n();
   const [state, action, pending] = useActionState(completeOnboarding, undefined);
+  useProgress(pending, { page: true });
   const [member, setMember] = useState(defaultRole !== "coach");
   const [coach, setCoach] = useState(defaultRole === "coach");
   const [locale, setLocale] = useState<Locale>(initialLocale);
@@ -133,12 +136,10 @@ export function OnboardingForm({
       {next && <input type="hidden" name="next" value={next} />}
 
       {state?.error && (
-        <p role="alert" className="rounded-2xl bg-berry-s px-4 py-3 text-sm font-semibold text-berry-d">
-          {state.error}
-        </p>
+        <Alert>{state.error}</Alert>
       )}
 
-      <button type="submit" disabled={pending || (!member && !coach)} className={btn.primary}>
+      <button type="submit" disabled={pending || (!member && !coach)} aria-busy={pending} className={btn.primary}>
         {pending ? t("common.saving") : t("onb.submit")}
       </button>
     </form>

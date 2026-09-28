@@ -6,6 +6,7 @@ import { Icon } from "@/components/Icon";
 import { useConfirm, useToast } from "@/components/feedback/FeedbackProvider";
 import { useI18n } from "@/components/I18nProvider";
 import { cn } from "@/components/ui";
+import { useProgress } from "@/components/feedback/NavigationProgress";
 
 export function LikeButton({ mealId, liked }: { mealId: string; liked: boolean }) {
   const { t } = useI18n();
@@ -36,6 +37,7 @@ export function CommentForm({ mealId, placeholder }: { mealId: string; placehold
   const { t } = useI18n();
   const [value, setValue] = useState("");
   const [pending, start] = useTransition();
+  useProgress(pending);
   const ref = useRef<HTMLInputElement>(null);
   return (
     <form
@@ -77,6 +79,7 @@ export function DeleteMealButton({ mealId }: { mealId: string }) {
   const confirm = useConfirm();
   const toast = useToast();
   const [pending, start] = useTransition();
+  useProgress(pending);
   return (
     <button
       type="button"

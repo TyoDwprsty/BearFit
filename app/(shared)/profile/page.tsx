@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { enableRole, updateProfileBasics } from "@/app/actions/preferences";
+import { SubmitButton } from "@/components/feedback/SubmitButton";
 import { Icon } from "@/components/Icon";
 import { LocaleToggle } from "@/components/LocaleToggle";
 import { CoachConnect, LeaveCoachButton } from "@/components/profile/CoachConnect";
@@ -11,7 +12,6 @@ import { PushToggle } from "@/components/pwa/PushToggle";
 import { RoleSwitch } from "@/components/shell/RoleSwitch";
 import { Avatar, btn, Card, Chip, cn, input, SectionTitle } from "@/components/ui";
 import { getActiveCoach, requireViewer } from "@/lib/auth";
-import { env } from "@/lib/env";
 import { formatShortDate, localDateOf } from "@/lib/dates";
 import { makeT } from "@/lib/i18n";
 import { normalizeTheme, THEME_COOKIE } from "@/lib/theme";
@@ -46,7 +46,7 @@ export default async function ProfilePage() {
     <div className="flex flex-col gap-5">
       <h1 className="font-display text-[30px] font-semibold">{t("profile.title")}</h1>
 
-      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-5">
           <Card className="flex flex-col gap-4">
             <div className="flex items-center gap-3.5">
@@ -71,9 +71,9 @@ export default async function ProfilePage() {
                   <textarea name="coach_bio" rows={2} defaultValue={profile.coach_bio ?? ""} maxLength={240} placeholder={t("onb.coachBioPh")} className={cn(input, "resize-none")} />
                 </label>
               )}
-              <button type="submit" className={cn(btn.small, "self-start border border-line")}>
+              <SubmitButton className={cn(btn.small, "self-start border border-line")}>
                 {t("common.save")}
-              </button>
+              </SubmitButton>
             </form>
           </Card>
 
@@ -83,15 +83,15 @@ export default async function ProfilePage() {
               <RoleSwitch current={mode} className="self-start" />
             ) : (
               <form action={enableRole.bind(null, profile.is_coach ? "member" : "coach")}>
-                <button type="submit" className={cn(btn.small, "border border-line")}>
+                <SubmitButton page className={cn(btn.small, "border border-line")}>
                   <Icon name="swap" size={16} />
                   {profile.is_coach ? t("profile.enableMember") : t("profile.enableCoach")}
-                </button>
+                </SubmitButton>
               </form>
             )}
           </Card>
 
-          {profile.is_coach && profile.coach_code && <InviteCard code={profile.coach_code} appUrl={env.appUrl} />}
+          {profile.is_coach && profile.coach_code && <InviteCard code={profile.coach_code} />}
 
           {profile.is_member && (
             <Card className="flex flex-col gap-3">

@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
+import { requestOrigin } from "@/lib/url";
 
 /** Starts Google OAuth. `role` (member|coach) pre-selects onboarding; `next` is where to land after. */
 export async function GET(request: NextRequest) {
-  const origin = request.nextUrl.origin;
+  const origin = requestOrigin(request);
   if (!isSupabaseConfigured()) return NextResponse.redirect(`${origin}/?error=setup`);
 
   const role = request.nextUrl.searchParams.get("role");

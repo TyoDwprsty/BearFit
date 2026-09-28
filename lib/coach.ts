@@ -70,7 +70,7 @@ export async function getMembersToday(db: SupabaseClient, members: MemberRow[]) 
       .eq("active", true),
   ]);
   const programFor = new Map(
-    ((programs ?? []) as unknown as { member_id: string; start_date: string; programs: { weeks: number; program_items: { day_of_week: number }[] } | null }[]).map(
+    ((programs ?? []) as unknown as { member_id: string; start_date: string; programs: { weeks: number | null; program_items: { day_of_week: number }[] } | null }[]).map(
       (p) => [p.member_id, p],
     ),
   );
@@ -85,7 +85,7 @@ export async function getMembersToday(db: SupabaseClient, members: MemberRow[]) 
     if (!plan) {
       const p = programFor.get(m.id);
       const day = p ? diffDays(today, p.start_date) : -1;
-      if (p?.programs && day >= 0 && day < p.programs.weeks * 7) {
+      if (p?.programs && day >= 0 && (p.programs.weeks == null || day < p.programs.weeks * 7)) {
         const wd = weekdayOf(today);
         items = p.programs.program_items.filter((i) => i.day_of_week === wd).map(() => ({ done_at: null }));
       }
@@ -118,7 +118,7 @@ export function memberDay(since: string, tz: string, program: { assignment: Memb
   const today = todayIn(tz);
   if (program) {
     const d = diffDays(today, program.assignment.start_date) + 1;
-    if (d >= 1 && d <= program.program.weeks * 7) return { day: d, program: program.program.name };
+    if (d >= 1 && (program.program.weeks == null || d <= program.program.weeks * 7)) return { day: d, program: program.program.name };
   }
   return { day: Math.max(1, diffDays(today, localDateOf(since, tz)) + 1), program: null };
 }

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { DatePickerButton } from "@/components/DatePickerButton";
 import { Icon } from "@/components/Icon";
+import { WeekStrip, type DayMark } from "@/components/WeekStrip";
 import { MealPost } from "@/components/member/MealPost";
 import { NutritionSummary } from "@/components/member/widgets";
 import { Card, cn, EmptyState, PageTitle, SegmentedLinks, btn } from "@/components/ui";
 import { getActiveCoach, requireViewer } from "@/lib/auth";
-import { addDays, formatLongDate, isValidDateStr, localDateOf, rangeUtc, todayIn, weekStart, weekdayShort } from "@/lib/dates";
+import { addDays, formatLongDate, isValidDateStr, localDateOf, rangeUtc, todayIn, weekStart } from "@/lib/dates";
 import { getActiveProgram, getMealsForDay, programDay, sumNutrition } from "@/lib/data";
 import { MEAL_TYPES } from "@/lib/format";
 import { makeT, type DictKey } from "@/lib/i18n";
@@ -36,7 +37,8 @@ export default async function FoodPage({ searchParams }: PageProps<"/food">) {
     supabase.from("targets").select("*").eq("user_id", userId).single(),
   ]);
   const targets = targetsRes.data as Targets;
-  const daysWithMeals = new Set((weekMeals.data ?? []).map((m) => localDateOf(m.eaten_at, tz)));
+  const marks: Record<string, DayMark> = {};
+  for (const m of weekMeals.data ?? []) marks[localDateOf(m.eaten_at, tz)] = "done";
   const { posts, people } = await hydrateMeals(supabase, [...meals].reverse(), coach ? [coach.id] : []);
   const logged = new Set(meals.map((m) => m.meal_type));
 
@@ -55,38 +57,10 @@ export default async function FoodPage({ searchParams }: PageProps<"/food">) {
       />
       <PageTitle eyebrow={eyebrow} title={t("food.title")} actions={<DatePickerButton value={date} max={today} label={t("food.openCalendar")} />} />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <div className="flex flex-col gap-4 lg:order-2 lg:sticky lg:top-10">
           {/* Week strip */}
-          <div className="grid grid-cols-7 gap-1.5">
-            {days.map((d) => {
-              const on = d === date;
-              const future = d > today;
-              const has = daysWithMeals.has(d);
-              const cls = cn(
-                "flex h-[66px] flex-col items-center justify-center gap-0.5 rounded-[18px] border transition",
-                on ? "border-mango bg-mango text-ink" : "border-line bg-card",
-                !on && (has ? "text-text" : "text-muted"),
-                future && "opacity-50",
-              );
-              const inner = (
-                <>
-                  <span className="text-[11px] font-bold">{weekdayShort(d, profile.locale)}</span>
-                  <span className="font-display text-lg font-semibold">{Number(d.slice(8))}</span>
-                  <span className={cn("h-[5px] w-[5px] rounded-full", on ? "bg-ink" : has ? "bg-mint" : "bg-transparent")} />
-                </>
-              );
-              return future ? (
-                <span key={d} className={cls} aria-disabled>
-                  {inner}
-                </span>
-              ) : (
-                <Link key={d} href={`/food?date=${d}`} replace scroll={false} aria-current={on ? "date" : undefined} className={cls}>
-                  {inner}
-                </Link>
-              );
-            })}
-          </div>
+          <WeekStrip days={days} selected={date} hrefFor={(d) => `/food?date=${d}`} locale={profile.locale} marks={marks} maxDate={today} />
 
           {/* Meal type status */}
           <div className="grid grid-cols-4 gap-2">

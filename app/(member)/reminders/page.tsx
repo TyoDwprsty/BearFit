@@ -27,7 +27,7 @@ export default async function RemindersPage() {
     <div className="flex flex-col gap-4">
       <PageTitle eyebrow={t("rem.subtitle")} title={t("rem.title")} />
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-1 rounded-[28px] bg-sun-s py-[18px] pr-2 pl-5">
             <div className="flex flex-1 flex-col gap-1">

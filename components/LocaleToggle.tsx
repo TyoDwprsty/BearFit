@@ -4,10 +4,12 @@ import { useTransition } from "react";
 import { setLocale } from "@/app/actions/preferences";
 import { useI18n } from "@/components/I18nProvider";
 import { cn } from "@/components/ui";
+import { useProgress } from "@/components/feedback/NavigationProgress";
 
 export function LocaleToggle({ className }: { className?: string }) {
   const { locale } = useI18n();
   const [pending, start] = useTransition();
+  useProgress(pending);
   return (
     <div className={cn("flex gap-1 rounded-full bg-card/80 p-1 text-xs font-extrabold backdrop-blur", className)} aria-busy={pending}>
       {(["id", "en"] as const).map((l) => (

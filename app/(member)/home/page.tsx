@@ -110,7 +110,7 @@ export default async function HomePage() {
 
       <InstallPrompt />
 
-      <div className="grid gap-[18px] lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-2">
         <div className="flex flex-col gap-[18px]">
           {/* Streak hero */}
           <div className="flex items-center gap-2 rounded-[28px] bg-sun-s py-3.5 pr-[18px] pl-2">

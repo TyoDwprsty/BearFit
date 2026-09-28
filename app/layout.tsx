@@ -1,8 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Fredoka, Plus_Jakarta_Sans } from "next/font/google";
 import { cookies } from "next/headers";
+import { Suspense } from "react";
 import { FeedbackProvider } from "@/components/feedback/FeedbackProvider";
+import { FormValidation } from "@/components/feedback/FormValidation";
+import { NavigationProgress } from "@/components/feedback/NavigationProgress";
 import { I18nProvider } from "@/components/I18nProvider";
+import { DisablePinchZoom } from "@/components/pwa/DisablePinchZoom";
 import { ServiceWorkerRegister } from "@/components/pwa/ServiceWorkerRegister";
 import { getLocale } from "@/lib/i18n/server";
 import { normalizeTheme, THEME_COOKIE, themeBootScript } from "@/lib/theme";
@@ -38,6 +42,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // App-like feel: no pinch / double-tap zoom (iOS also needs <DisablePinchZoom />).
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
   themeColor: "#FFF8F0",
 };
@@ -62,7 +69,12 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <I18nProvider locale={locale}>
           <FeedbackProvider>
             {children}
+            <Suspense fallback={null}>
+              <NavigationProgress />
+            </Suspense>
             <ServiceWorkerRegister />
+            <DisablePinchZoom />
+            <FormValidation />
           </FeedbackProvider>
         </I18nProvider>
       </body>

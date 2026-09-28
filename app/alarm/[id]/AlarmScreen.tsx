@@ -10,6 +10,7 @@ import { useI18n } from "@/components/I18nProvider";
 import { startAlarmSound } from "@/lib/alarm-sound";
 import type { DictKey } from "@/lib/i18n";
 import type { ReminderKind } from "@/lib/types";
+import { startNavigation, useProgress } from "@/components/feedback/NavigationProgress";
 
 /** Full-screen ringing alarm (design: 07 · Alarm Berbunyi). */
 export function AlarmScreen({
@@ -39,6 +40,7 @@ export function AlarmScreen({
   const [blocked, setBlocked] = useState(false);
   const [snoozed, setSnoozed] = useState(false);
   const [pending, start] = useTransition();
+  useProgress(pending);
 
   const play = async () => {
     try {
@@ -132,7 +134,10 @@ export function AlarmScreen({
               stop();
               if (!preview) await snoozeReminder(reminder.id);
               setSnoozed(true);
-              window.setTimeout(() => router.replace("/home"), 1200);
+              window.setTimeout(() => {
+                startNavigation();
+                router.replace("/home");
+              }, 1200);
             })
           }
           className="flex h-[58px] items-center justify-center rounded-[20px] border-2 border-white/75 font-display text-[19px] font-semibold transition active:scale-[0.98]"

@@ -6,11 +6,12 @@ import { useI18n } from "@/components/I18nProvider";
 import { btn, cn } from "@/components/ui";
 
 /** Coach invite code with copy & native share. */
-export function InviteCard({ code, appUrl }: { code: string; appUrl: string }) {
+export function InviteCard({ code }: { code: string }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
-  const link = `${appUrl.replace(/\/$/, "")}/join/${code}`;
   const text = t("profile.inviteShareText", { code });
+  // Built from the domain the user is on, so production, preview & local links all work.
+  const joinLink = () => `${window.location.origin}/join/${code}`;
 
   return (
     <div className="flex flex-col gap-3 rounded-[24px] bg-grape p-[18px] text-on-grape">
@@ -24,7 +25,7 @@ export function InviteCard({ code, appUrl }: { code: string; appUrl: string }) {
           type="button"
           onClick={async () => {
             try {
-              await navigator.clipboard.writeText(link);
+              await navigator.clipboard.writeText(joinLink());
               setCopied(true);
               window.setTimeout(() => setCopied(false), 1600);
             } catch {
@@ -40,9 +41,9 @@ export function InviteCard({ code, appUrl }: { code: string; appUrl: string }) {
           type="button"
           onClick={async () => {
             if (navigator.share) {
-              await navigator.share({ title: "BearFit", text, url: link }).catch(() => {});
+              await navigator.share({ title: "BearFit", text, url: joinLink() }).catch(() => {});
             } else {
-              await navigator.clipboard?.writeText(`${text} ${link}`).catch(() => {});
+              await navigator.clipboard?.writeText(`${text} ${joinLink()}`).catch(() => {});
               setCopied(true);
             }
           }}

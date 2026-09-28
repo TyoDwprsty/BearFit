@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getViewer } from "@/lib/auth";
-import { isValidDateStr } from "@/lib/dates";
-import { itemFromExercise } from "@/lib/data";
+import { getActiveCoach, getViewer } from "@/lib/auth";
+import { formatLongDate, isValidDateStr } from "@/lib/dates";
+import { ensurePlanFromProgram, itemFromExercise } from "@/lib/data";
 import { notify } from "@/lib/notify";
 import type { Exercise } from "@/lib/types";
 
@@ -27,14 +27,11 @@ async function viewerFor(memberId: string) {
 
 async function ensurePlan(memberId: string, date: string) {
   const { viewer, isSelf } = await viewerFor(memberId);
-  const { data: existing } = await viewer.supabase
-    .from("workout_plans")
-    .select("id, source")
-    .eq("member_id", memberId)
-    .eq("plan_date", date)
-    .maybeSingle();
+  // Start from the program's template for that day (if any) instead of an empty plan.
+  const { plan: existing } = await ensurePlanFromProgram(viewer.supabase, memberId, date);
   if (existing) {
-    if (!isSelf && existing.source === "member") {
+    // Edited by the coach → it's the coach's plan now (and no longer auto-rebuilt from the template).
+    if (!isSelf && existing.source !== "coach") {
       await viewer.supabase.from("workout_plans").update({ source: "coach", updated_at: new Date().toISOString() }).eq("id", existing.id);
     }
     return { viewer, planId: existing.id as string };
@@ -107,11 +104,49 @@ export async function publishPlan(memberId: string, date: string, note: string) 
   const { viewer, planId } = await ensurePlan(memberId, date);
   await viewer.supabase
     .from("workout_plans")
-    .update({ note: note.trim().slice(0, 500) || null, updated_at: new Date().toISOString() })
+    .update({
+      note: note.trim().slice(0, 500) || null,
+      updated_at: new Date().toISOString(),
+      // Saved by the coach = the member's request is answered.
+      ...(viewer.userId !== memberId && { requested_at: null }),
+    })
     .eq("id", planId);
   if (viewer.userId !== memberId) {
     await notify({ userId: memberId, actorId: viewer.userId, kind: "plan", url: `/workout?date=${date}`, body: note.trim() || undefined });
   }
   revalidate(memberId);
   return { ok: true };
+}
+
+/** Member: ask the active coach to fill in the workout for `date`. */
+export async function requestWorkoutFromCoach(date: string) {
+  if (!isValidDateStr(date)) return { error: "invalid" as const };
+  const viewer = await getViewer();
+  if (!viewer) redirect("/");
+  const coach = await getActiveCoach(viewer);
+  if (!coach) return { error: "noCoach" as const };
+  const { planId } = await ensurePlan(viewer.userId, date);
+  const { data: plan } = await viewer.supabase.from("workout_plans").select("requested_at").eq("id", planId).single();
+  if (plan?.requested_at) return { ok: true as const };
+  await viewer.supabase.from("workout_plans").update({ requested_at: new Date().toISOString() }).eq("id", planId);
+  await notify({
+    userId: coach.id,
+    actorId: viewer.userId,
+    kind: "planRequest",
+    url: `/coach/members/${viewer.userId}/plan?date=${date}`,
+    body: formatLongDate(date, viewer.profile.locale),
+  });
+  revalidate(viewer.userId);
+  revalidatePath("/coach");
+  return { ok: true as const };
+}
+
+/** Member: withdraw a pending request. */
+export async function cancelWorkoutRequest(date: string) {
+  if (!isValidDateStr(date)) return;
+  const viewer = await getViewer();
+  if (!viewer) redirect("/");
+  await viewer.supabase.from("workout_plans").update({ requested_at: null }).eq("member_id", viewer.userId).eq("plan_date", date);
+  revalidate(viewer.userId);
+  revalidatePath("/coach");
 }

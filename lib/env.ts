@@ -10,7 +10,6 @@ export function isPlaceholder(value: string | undefined): boolean {
 }
 
 export const env = {
-  appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
   supabaseKey:
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??

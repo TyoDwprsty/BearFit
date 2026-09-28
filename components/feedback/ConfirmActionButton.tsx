@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import type { BeruPose } from "@/components/Beru";
 import { useConfirm, useToast } from "./FeedbackProvider";
+import { useProgress } from "./NavigationProgress";
 
 /** Button that asks with the BearFit confirm dialog, then runs a (bound) server action. */
 export function ConfirmActionButton({
@@ -29,10 +30,12 @@ export function ConfirmActionButton({
   const confirm = useConfirm();
   const toast = useToast();
   const [pending, start] = useTransition();
+  useProgress(pending);
   return (
     <button
       type="button"
       disabled={pending}
+      aria-busy={pending}
       className={className}
       onClick={async () => {
         if (!(await confirm({ title, message, confirmLabel, danger, pose }))) return;
