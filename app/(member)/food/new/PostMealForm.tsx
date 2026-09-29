@@ -6,6 +6,7 @@ import { createMeal } from "@/app/actions/meals";
 import { Beru } from "@/components/Beru";
 import { FOOD_ART_BY_MEAL, FoodArt } from "@/components/FoodArt";
 import { Icon } from "@/components/Icon";
+import { TimeField } from "@/components/TimePicker";
 import { useI18n } from "@/components/I18nProvider";
 import { btn, cn, input, label, optionClass } from "@/components/ui";
 import { MEAL_TAGS, MEAL_TYPES, PORTIONS } from "@/lib/format";
@@ -244,10 +245,15 @@ export function PostMealForm({
             </button>
           ))}
         </div>
-        <label className="mt-1 flex items-center justify-between gap-3 rounded-2xl border-[1.5px] border-line bg-card px-4 py-2">
+        <div className="mt-1 flex items-center justify-between gap-3 rounded-2xl border-[1.5px] border-line bg-card py-2 pl-4 pr-2">
           <span className="text-sm font-bold">{t("post.eatenAt")}</span>
-          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} required className="bg-transparent text-right font-display text-lg font-semibold focus:outline-none" />
-        </label>
+          <TimeField
+            value={time}
+            onChange={setTime}
+            label={t("post.eatenAt")}
+            className="flex min-h-11 items-center gap-2 rounded-xl px-2 font-display text-lg font-semibold transition active:scale-95"
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">

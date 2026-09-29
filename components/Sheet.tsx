@@ -29,7 +29,10 @@ export function Sheet({
   return (
     <dialog
       ref={ref}
-      onClose={onClose}
+      onClose={(e) => {
+        // React bubbles `close` from nested sheets (e.g. a picker inside a form sheet).
+        if (e.target === e.currentTarget) onClose();
+      }}
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}

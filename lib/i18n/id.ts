@@ -559,6 +559,10 @@ export const id = {
   "form.invalid": "Cek lagi isian ini, ya.",
   "cal.prev": "Bulan sebelumnya",
   "cal.next": "Bulan berikutnya",
+  "time.hour": "Jam",
+  "time.minute": "Menit",
+  "time.now": "Sekarang",
+  "time.set": "Pakai jam ini",
 } as const;
 
 export type DictKey = keyof typeof id;

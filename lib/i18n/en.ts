@@ -544,4 +544,8 @@ export const en: Record<DictKey, string> = {
   "form.invalid": "Please check this field.",
   "cal.prev": "Previous month",
   "cal.next": "Next month",
+  "time.hour": "Hour",
+  "time.minute": "Minute",
+  "time.now": "Now",
+  "time.set": "Set time",
 };

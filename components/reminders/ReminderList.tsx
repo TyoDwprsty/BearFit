@@ -6,6 +6,7 @@ import { Icon, REMINDER_ICON } from "@/components/Icon";
 import { useConfirm, useToast } from "@/components/feedback/FeedbackProvider";
 import { useI18n } from "@/components/I18nProvider";
 import { Sheet } from "@/components/Sheet";
+import { TimeField } from "@/components/TimePicker";
 import { btn, cn, input, label, SOLID } from "@/components/ui";
 import { hhmm } from "@/lib/dates";
 import { reminderDays } from "@/lib/format";
@@ -138,13 +139,11 @@ function ReminderEditor({ reminder, userId, onDone }: { reminder: Reminder | nul
       }}
     >
       <div className="flex items-center justify-center rounded-[24px] bg-sun-s py-3">
-        <input
-          type="time"
+        <TimeField
           value={time}
-          onChange={(e) => setTime(e.target.value)}
-          required
-          aria-label={t("rem.time")}
-          className="bg-transparent text-center font-display text-[56px] leading-none font-semibold focus:outline-none"
+          onChange={setTime}
+          label={t("rem.time")}
+          className="rounded-2xl px-4 text-center font-display text-[56px] leading-none font-semibold transition active:scale-95"
         />
       </div>
 
@@ -213,10 +212,10 @@ function ReminderEditor({ reminder, userId, onDone }: { reminder: Reminder | nul
             ))}
           </select>
         </label>
-        <label className={cn("flex flex-col gap-2", !every && "opacity-50")}>
+        <div className={cn("flex flex-col gap-2", !every && "opacity-50")}>
           <span className={label}>{t("rem.repeatUntil")}</span>
-          <input type="time" value={until} disabled={!every} onChange={(e) => setUntil(e.target.value)} className={input} />
-        </label>
+          <TimeField value={until} onChange={setUntil} disabled={!every} label={t("rem.repeatUntil")} className={cn(input, "text-left")} />
+        </div>
       </div>
 
       {error && <Alert>{error}</Alert>}
