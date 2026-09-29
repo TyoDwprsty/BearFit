@@ -9,6 +9,9 @@ import { Alert } from "@/components/feedback/Alert";
 
 export default async function WelcomePage({ searchParams }: PageProps<"/">) {
   const params = await searchParams;
+  // Supabase falls back to the Site URL ("/?code=…") when the callback URL isn't in its
+  // Redirect URLs allow-list; finish the login instead of showing the welcome screen.
+  if (typeof params.code === "string") redirect(`/auth/callback?code=${encodeURIComponent(params.code)}`);
   const next = typeof params.next === "string" ? params.next : undefined;
   const viewer = await getViewer();
   if (viewer) redirect(next && next.startsWith("/") && !next.startsWith("//") ? next : homeFor(viewer.profile));

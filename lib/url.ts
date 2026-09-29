@@ -1,3 +1,6 @@
+/** Short-lived cookie carrying the welcome-screen choice (role/next) through Google OAuth. */
+export const AUTH_INTENT_COOKIE = "bf_auth_intent";
+
 /**
  * Public origin of the current request, e.g. `https://bearfit.vercel.app`.
  * Honours the forwarding headers set by Vercel / reverse proxies so redirects
