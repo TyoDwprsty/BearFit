@@ -304,6 +304,7 @@ export const id = {
   "rem.iosHint": "Di iPhone: ketuk Bagikan → \"Tambah ke Layar Utama\", lalu buka BearFit dari ikon di layar utama untuk mengaktifkan notifikasi.",
   "rem.test": "Kirim tes",
   "rem.testSent": "Notifikasi tes terkirim!",
+  "rem.testNoDevice": "Tidak ada HP yang menerima. Matikan lalu nyalakan lagi notifikasi.",
 
   "alarm.title": "Waktunya gerak, {name}!",
   "alarm.title.water": "Waktunya minum, {name}!",

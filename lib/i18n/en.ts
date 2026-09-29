@@ -294,6 +294,7 @@ export const en: Record<DictKey, string> = {
   "rem.iosHint": "On iPhone: tap Share → \"Add to Home Screen\", then open BearFit from the home screen icon to enable notifications.",
   "rem.test": "Send test",
   "rem.testSent": "Test notification sent!",
+  "rem.testNoDevice": "No device received it. Turn notifications off and on again.",
 
   "alarm.title": "Time to move, {name}!",
   "alarm.title.water": "Time to drink, {name}!",

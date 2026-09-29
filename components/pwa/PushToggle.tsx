@@ -105,7 +105,8 @@ export function PushToggle({ variant = "row" }: { variant?: "row" | "card" }) {
     setBusy(true);
     try {
       const res = await fetch("/api/push/test", { method: "POST" });
-      setMessage(res.ok ? t("rem.testSent") : t("common.error"));
+      const { sent } = (await res.json().catch(() => ({}))) as { sent?: number };
+      setMessage(!res.ok ? t("common.error") : sent ? t("rem.testSent") : t("rem.testNoDevice"));
     } finally {
       setBusy(false);
     }

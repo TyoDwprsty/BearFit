@@ -25,10 +25,11 @@ function ensureConfigured() {
 
 /**
  * Sends a push to every subscription of a user. Expired subscriptions
- * (404/410) are removed. `admin` must be a service-role client.
+ * (404/410) are removed; other failures are logged. `admin` must be a
+ * service-role client.
  */
 export async function sendPushToUser(admin: SupabaseClient, userId: string, payload: PushPayload) {
-  if (!isPushConfigured()) return { sent: 0 };
+  if (!isPushConfigured()) return { sent: 0, failed: 0 };
   ensureConfigured();
 
   const { data: subs } = await admin
@@ -37,6 +38,7 @@ export async function sendPushToUser(admin: SupabaseClient, userId: string, payl
     .eq("user_id", userId);
 
   let sent = 0;
+  let failed = 0;
   const stale: string[] = [];
   await Promise.all(
     (subs ?? []).map(async (s) => {
@@ -48,11 +50,15 @@ export async function sendPushToUser(admin: SupabaseClient, userId: string, payl
         );
         sent++;
       } catch (err) {
-        const status = (err as { statusCode?: number }).statusCode;
-        if (status === 404 || status === 410) stale.push(s.id);
+        const { statusCode, body } = err as { statusCode?: number; body?: string };
+        if (statusCode === 404 || statusCode === 410) stale.push(s.id);
+        else {
+          failed++;
+          console.error("[push] send failed", statusCode, body ?? err);
+        }
       }
     }),
   );
   if (stale.length) await admin.from("push_subscriptions").delete().in("id", stale);
-  return { sent };
+  return { sent, failed };
 }

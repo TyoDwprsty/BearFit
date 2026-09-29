@@ -43,6 +43,7 @@ async function run(request: Request) {
   }
 
   let sent = 0;
+  let failed = 0;
   await Promise.all(
     due.map(async (r) => {
       const t = makeT(normalizeLocale(r.profiles?.locale));
@@ -61,11 +62,12 @@ async function run(request: Request) {
         actionSnooze: t("alarm.snooze", { n: r.profiles?.alarm_snooze_min ?? 10 }),
       });
       sent += res.sent;
+      failed += res.failed;
       await admin.from("reminders").update({ last_fired_at: now.toISOString(), snooze_until: null }).eq("id", r.id);
     }),
   );
 
-  return Response.json({ checked: data?.length ?? 0, fired: due.length, sent });
+  return Response.json({ checked: data?.length ?? 0, fired: due.length, sent, failed });
 }
 
 export const GET = run;
