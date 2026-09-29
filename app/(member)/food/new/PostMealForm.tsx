@@ -13,16 +13,26 @@ import { MEAL_TAGS, MEAL_TYPES, PORTIONS } from "@/lib/format";
 import type { DictKey } from "@/lib/i18n";
 import { blobToDataUrl, compressImage } from "@/lib/image-client";
 import { usePhotoUpload } from "@/lib/use-photo-upload";
-import type { MealType, NutritionEstimate, Portion } from "@/lib/types";
+import type { MealGuess, MealType, NutritionEstimate, Portion } from "@/lib/types";
 import { startNavigation, useProgress } from "@/components/feedback/NavigationProgress";
 import { Alert } from "@/components/feedback/Alert";
 
 type Tag = (typeof MEAL_TAGS)[number];
+/**
+ * Photo → Beru guesses the meal & portion ("review") → the user corrects the
+ * description/portion and taps ✓ → calories, macros and plate tags are filled
+ * by the AI ("done"). Editing the description or portion again sends it back
+ * to "review". "off"/"error" = manual entry.
+ */
 type AiState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "done"; estimate: NutritionEstimate }
+  | { status: "off" }
+  | { status: "guessing" }
+  | { status: "review"; guess: MealGuess }
+  | { status: "estimating"; guess: MealGuess }
+  | { status: "done"; guess: MealGuess; estimate: NutritionEstimate }
   | { status: "error"; reason: "fail" | "nokey" };
+
+const NO_MACROS = { calories: "", protein_g: "", carbs_g: "", fat_g: "" };
 
 export function PostMealForm({
   defaultType,
@@ -41,7 +51,6 @@ export function PostMealForm({
 }) {
   const { t } = useI18n();
   const router = useRouter();
-  const fileRef = useRef<HTMLInputElement>(null);
 
   const [mealType, setMealType] = useState<MealType>(defaultType);
   const [portion, setPortion] = useState<Portion>("medium");
@@ -52,55 +61,107 @@ export function PostMealForm({
   // Picked photo is compressed to WebP and staged in R2 right away (see usePhotoUpload).
   // `photo.original` feeds the AI as a sharp JPEG.
   const { photo, pick, retry, waitForKey } = usePhotoUpload({ enabled: uploadEnabled });
-  const [macros, setMacros] = useState({ calories: "", protein_g: "", carbs_g: "", fat_g: "" });
+  const [macros, setMacros] = useState(NO_MACROS);
   const [aiUsed, setAiUsed] = useState(false);
-  const [ai, setAi] = useState<AiState>({ status: "idle" });
+  const [ai, setAi] = useState<AiState>({ status: "off" });
   const [phase, setPhase] = useState<"idle" | "uploading" | "posting">("idle");
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
+  // JPEG copy for the AI, made once when the photo is picked: Android often
+  // refuses to read the picked file a second time, which made re-estimating fail.
+  const aiImage = useRef<Promise<string> | null>(null);
+  // Ignores AI replies that arrive after the photo or description changed.
+  const aiRun = useRef(0);
 
-  async function estimate(original: File) {
+  // While Beru handles the meal, the plate and nutrition fields are AI-only.
+  const aiLocked = ai.status === "guessing" || ai.status === "review" || ai.status === "estimating" || ai.status === "done";
+
+  async function askAi<T>(mode: "guess" | "estimate"): Promise<T> {
+    const image = await aiImage.current;
+    if (!image) throw new Error("no image");
+    const res = await fetch("/api/ai/nutrition", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image, caption, portion, mode }),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    return (await res.json()) as T;
+  }
+
+  function resetAiResult() {
+    setMacros(NO_MACROS);
+    setTags(new Set());
+    setAiUsed(false);
+  }
+
+  async function guess() {
     if (!aiEnabled) {
       setAi({ status: "error", reason: "nokey" });
       return;
     }
-    setAi({ status: "loading" });
+    const run = ++aiRun.current;
+    setAi({ status: "guessing" });
+    resetAiResult();
     try {
-      // JPEG is the safest format for vision models; 1024px keeps food details readable.
-      const small = await compressImage(original, { maxSide: 1024, quality: 0.85, type: "image/jpeg" });
-      const res = await fetch("/api/ai/nutrition", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: await blobToDataUrl(small), caption, portion }),
-      });
-      if (!res.ok) throw new Error(String(res.status));
-      const est = (await res.json()) as NutritionEstimate;
+      const g = await askAi<MealGuess>("guess");
+      if (run !== aiRun.current) return;
       // Not food / unreadable photo → Beru "can't see" it.
+      if (!g.is_food || !g.name) {
+        setAi({ status: "error", reason: "fail" });
+        return;
+      }
+      setAi({ status: "review", guess: g });
+      setCaption((c) => (c.trim() ? c : g.name));
+      setPortion(g.portion);
+    } catch {
+      if (run === aiRun.current) setAi({ status: "error", reason: "fail" });
+    }
+  }
+
+  async function count() {
+    if (ai.status !== "review") return;
+    const { guess: g } = ai;
+    const run = ++aiRun.current;
+    setAi({ status: "estimating", guess: g });
+    try {
+      const est = await askAi<NutritionEstimate>("estimate");
+      if (run !== aiRun.current) return;
       if (!est.calories) {
         setAi({ status: "error", reason: "fail" });
         return;
       }
-      setAi({ status: "done", estimate: est });
+      setAi({ status: "done", guess: g, estimate: est });
       setMacros({
         calories: String(est.calories),
         protein_g: String(est.protein_g),
         carbs_g: String(est.carbs_g),
         fat_g: String(est.fat_g),
       });
+      setTags(new Set(est.tags as Tag[]));
       setAiUsed(true);
-      if (est.tags.length) setTags((prev) => new Set([...prev, ...(est.tags as Tag[])]));
-      if (!caption && est.name) setCaption(est.name);
     } catch {
-      setAi({ status: "error", reason: "fail" });
+      if (run === aiRun.current) setAi({ status: "error", reason: "fail" });
     }
+  }
+
+  /** The description or portion changed: the old calories no longer apply until ✓ again. */
+  function invalidate() {
+    if (ai.status !== "done" && ai.status !== "estimating") return;
+    aiRun.current++;
+    setAi({ status: "review", guess: ai.guess });
+    resetAiResult();
   }
 
   async function onPick(file: File | undefined) {
     if (!file) return;
     setError(null);
+    // JPEG is the safest format for vision models; 1024px keeps food details readable.
+    const image = compressImage(file, { maxSide: 1024, quality: 0.85, type: "image/jpeg" }).then(blobToDataUrl);
+    image.catch(() => {});
+    aiImage.current = image;
     try {
       await pick(file);
-      void estimate(file);
+      void guess();
     } catch {
       setError(t("common.error"));
     }
@@ -143,11 +204,16 @@ export function PostMealForm({
         return;
       }
       startNavigation();
-      router.push(`/food${res.date ? `?date=${res.date}` : ""}`);
+      // Replace: back from the feed shouldn't reopen the finished form.
+      router.replace(`/food${res.date ? `?date=${res.date}` : ""}`);
       router.refresh();
     });
   }
 
+  const photoSources = [
+    { icon: "camera", text: t("post.camera"), capture: true },
+    { icon: "image", text: t("post.gallery"), capture: false },
+  ] as const;
   const art = FOOD_ART_BY_MEAL[mealType];
   const busy = phase !== "idle";
   useProgress(busy);
@@ -168,22 +234,30 @@ export function PostMealForm({
         ) : (
           <FoodArt kind={art.kind} size={180} />
         )}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          onChange={(e) => onPick(e.target.files?.[0])}
-          aria-label={photo ? t("post.changePhoto") : t("post.addPhoto")}
-        />
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          className="absolute right-3 bottom-3 flex min-h-11 items-center gap-1.5 rounded-full bg-card px-3.5 text-[13px] font-bold text-text shadow-sm transition active:scale-95"
-        >
-          <Icon name="camera" size={18} strokeWidth={2} />
-          {photo ? t("post.changePhoto") : t("post.addPhoto")}
-        </button>
+        {/* Camera opens the rear camera directly; Gallery uses the system picker. Both go through onPick (compression). */}
+        <div className="absolute right-3 bottom-3 flex gap-2">
+          {photoSources.map(({ icon, text, capture }) => (
+            <label
+              key={icon}
+              className="flex min-h-11 cursor-pointer items-center gap-1.5 rounded-full bg-card px-3.5 text-[13px] font-bold text-text shadow-sm transition focus-within:outline-2 focus-within:outline-grape active:scale-95"
+            >
+              <input
+                type="file"
+                accept="image/*"
+                capture={capture ? "environment" : undefined}
+                className="sr-only"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = ""; // allow picking the same photo again
+                  void onPick(file);
+                }}
+                aria-label={`${photo ? t("post.changePhoto") : t("post.addPhoto")}: ${text}`}
+              />
+              <Icon name={icon} size={18} strokeWidth={2} />
+              {text}
+            </label>
+          ))}
+        </div>
         {photo && (
           <span
             role="status"
@@ -209,21 +283,30 @@ export function PostMealForm({
       </div>
 
       {/* AI status */}
-      {ai.status !== "idle" && (
+      {ai.status !== "off" && (
         <div
           role="status"
           className={cn(
             "flex items-center gap-2.5 rounded-2xl px-3.5 py-3 text-[13px] font-semibold",
-            ai.status === "error" ? "bg-sun-s text-sun-d" : "bg-grape-s text-grape-d",
+            ai.status === "error" ? "bg-sun-s text-sun-d" : ai.status === "review" ? "bg-mango-s text-mango-d" : "bg-grape-s text-grape-d",
           )}
         >
           {ai.status === "error" && ai.reason === "fail" ? (
             <Beru pose="alarm" size={52} className="-my-2 shrink-0" />
+          ) : ai.status === "review" ? (
+            <Beru pose="eat" size={52} className="-my-2 shrink-0" />
           ) : (
-            <Icon name="sparkle" size={18} className={cn("mt-px shrink-0", ai.status === "loading" && "animate-pulse")} />
+            <Icon
+              name="sparkle"
+              size={18}
+              className={cn("mt-px shrink-0", (ai.status === "guessing" || ai.status === "estimating") && "animate-pulse")}
+            />
           )}
           <span className="flex-1">
-            {ai.status === "loading" && t("post.estimating")}
+            {ai.status === "guessing" && t("post.identifying")}
+            {ai.status === "review" &&
+              t("post.guess", { name: ai.guess.name, portion: t(`portion.${ai.guess.portion}` as DictKey).toLowerCase() })}
+            {ai.status === "estimating" && t("post.estimating")}
             {ai.status === "done" && (
               <>
                 {t("post.estimated", { c: t(`post.confidence.${ai.estimate.confidence}` as DictKey) })}
@@ -264,7 +347,10 @@ export function PostMealForm({
           id="caption"
           rows={3}
           value={caption}
-          onChange={(e) => setCaption(e.target.value)}
+          onChange={(e) => {
+            setCaption(e.target.value);
+            invalidate();
+          }}
           placeholder={t("post.captionPh")}
           maxLength={500}
           className={cn(input, "resize-none leading-normal")}
@@ -275,15 +361,35 @@ export function PostMealForm({
         <span className={label}>{t("post.portion")}</span>
         <div className="grid grid-cols-3 gap-2">
           {PORTIONS.map((p) => (
-            <button key={p} type="button" aria-pressed={portion === p} onClick={() => setPortion(p)} className={optionClass(portion === p)}>
+            <button
+              key={p}
+              type="button"
+              aria-pressed={portion === p}
+              onClick={() => {
+                if (p === portion) return;
+                setPortion(p);
+                invalidate();
+              }}
+              className={optionClass(portion === p)}
+            >
               {t(`portion.${p}` as DictKey)}
             </button>
           ))}
         </div>
       </div>
 
+      {(ai.status === "review" || ai.status === "estimating") && (
+        <button type="button" onClick={count} disabled={ai.status === "estimating"} aria-busy={ai.status === "estimating"} className={cn(btn.primary, "h-13 text-base")}>
+          <Icon name="check" size={20} strokeWidth={3} />
+          {ai.status === "estimating" ? t("post.estimating") : t("post.confirm")}
+        </button>
+      )}
+
       <div className="flex flex-col gap-2">
-        <span className={label}>{t("post.plate")}</span>
+        <div className="flex items-center justify-between gap-2">
+          <span className={label}>{t("post.plate")}</span>
+          {aiLocked && <AutoByAi />}
+        </div>
         <div className="flex flex-wrap gap-2">
           {MEAL_TAGS.map((g) => {
             const on = tags.has(g);
@@ -292,6 +398,7 @@ export function PostMealForm({
                 key={g}
                 type="button"
                 aria-pressed={on}
+                disabled={aiLocked}
                 onClick={() =>
                   setTags((prev) => {
                     const next = new Set(prev);
@@ -301,7 +408,7 @@ export function PostMealForm({
                   })
                 }
                 className={cn(
-                  "min-h-11 rounded-full border-[1.5px] px-4 text-[13px] font-bold transition active:scale-95",
+                  "min-h-11 rounded-full border-[1.5px] px-4 text-[13px] font-bold transition active:scale-95 disabled:active:scale-100",
                   on ? "border-mint bg-mint-s text-mint-d" : "border-line bg-card text-muted",
                 )}
               >
@@ -317,11 +424,17 @@ export function PostMealForm({
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <span className={label}>{t("post.nutrition")}</span>
-          {photo && ai.status !== "loading" && (
-            <button type="button" onClick={() => estimate(photo.original)} className={btn.ghost}>
-              <Icon name="sparkle" size={16} />
-              {t("post.estimate")}
-            </button>
+          {aiLocked ? (
+            <AutoByAi />
+          ) : (
+            photo &&
+            ai.status === "error" &&
+            ai.reason === "fail" && (
+              <button type="button" onClick={guess} className={btn.ghost}>
+                <Icon name="sparkle" size={16} />
+                {t("post.estimate")}
+              </button>
+            )
           )}
         </div>
         <div className="grid grid-cols-4 gap-2">
@@ -341,11 +454,12 @@ export function PostMealForm({
                 min={0}
                 step="any"
                 value={macros[key]}
+                readOnly={aiLocked}
                 onChange={(e) => {
                   setMacros((m) => ({ ...m, [key]: e.target.value }));
                 }}
                 placeholder="–"
-                className={cn(input, "px-2 text-center font-bold", key === "calories" && "border-mango")}
+                className={cn(input, "px-2 text-center font-bold", key === "calories" && "border-mango", aiLocked && "bg-soft focus:border-line")}
               />
             </label>
           ))}
@@ -375,7 +489,8 @@ export function PostMealForm({
         <Alert>{error}</Alert>
       )}
 
-      <button type="submit" disabled={busy || ai.status === "loading"} aria-busy={busy} className={cn(btn.mango, "h-[58px]")}>
+      {aiLocked && ai.status !== "done" && <p className="-mb-2 text-center text-xs font-semibold text-muted">{t("post.confirmFirst")}</p>}
+      <button type="submit" disabled={busy || (aiLocked && ai.status !== "done")} aria-busy={busy} className={cn(btn.mango, "h-[58px]")}>
         {phase === "uploading"
           ? t("post.uploading")
           : phase === "posting"
@@ -388,5 +503,16 @@ export function PostMealForm({
         </button>
       )}
     </form>
+  );
+}
+
+/** Marks a section whose values come from Beru's estimate. */
+function AutoByAi() {
+  const { t } = useI18n();
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-bold text-grape-d">
+      <Icon name="sparkle" size={14} />
+      {t("post.autoByAi")}
+    </span>
   );
 }

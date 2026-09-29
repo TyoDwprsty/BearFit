@@ -14,6 +14,7 @@ const PATHS = {
   check: "M5 12l5 5 9-10",
   calendar: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4",
   camera: "M4 8h3l2-3h6l2 3h3v11H4zM8.5 13a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0",
+  image: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M14 9.5a1.5 1.5 0 1 0 3 0a1.5 1.5 0 1 0-3 0",
   back: "M15 6l-6 6 6 6",
   chevron: "M9 6l6 6-6 6",
   sound: "M4 9h4l5-4v14l-5-4H4zM17 9a4 4 0 0 1 0 6",
@@ -24,6 +25,7 @@ const PATHS = {
   chart: "M5 20v-6M11 20V8M17 20V11M3 20h18",
   sun: "M8 12a4 4 0 1 0 8 0a4 4 0 1 0-8 0M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5",
   lock: "M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4",
+  ball: "M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M5.6 5.6a9 9 0 0 1 0 12.8M18.4 5.6a9 9 0 0 0 0 12.8",
   heartLine: "M12 20s-8-5-8-11a4.5 4.5 0 0 1 8-2.5A4.5 4.5 0 0 1 20 9c0 6-8 11-8 11z",
   swap: "M7 7h13M16 3l4 4-4 4M17 17H4M8 13l-4 4 4 4",
   logout: "M15 4h4v16h-4M10 8l-4 4 4 4M6 12h11",
@@ -87,7 +89,7 @@ export function Icon({
   );
 }
 
-export const CATEGORY_ICON = { cardio: "heartLine", strength: "workout", flexibility: "stretch" } as const;
+export const CATEGORY_ICON = { sport: "ball", cardio: "heartLine", strength: "workout", flexibility: "stretch" } as const;
 export const REMINDER_ICON = {
   workout: "bell",
   water: "water",

@@ -18,7 +18,7 @@ export function exerciseName(ex: Pick<ExLike, "name_id" | "name_en">, locale: Lo
 }
 
 /** "3 × 12 repetisi" / "3 × 30 detik" / "30 menit" */
-export function exerciseMeta(ex: ExLike, t: TFunction): string {
+export function exerciseMeta(ex: Pick<ExLike, "sets" | "reps" | "duration_sec" | "minutes">, t: TFunction): string {
   if (ex.sets && ex.reps) return t("ex.reps", { s: ex.sets, r: ex.reps });
   if (ex.sets && ex.duration_sec) return t("ex.secs", { s: ex.sets, d: ex.duration_sec });
   return t("ex.mins", { m: ex.minutes });
@@ -68,7 +68,7 @@ export function round1(n: number | null | undefined): number {
 export const MEAL_TYPES = ["breakfast", "lunch", "dinner", "snack"] as const;
 export const PORTIONS = ["small", "medium", "large"] as const;
 export const MEAL_TAGS = ["veg", "protein", "carbs", "fruit", "fiber", "fried", "sweet"] as const;
-export const CATEGORIES = ["cardio", "strength", "flexibility"] as const;
+export const CATEGORIES = ["sport", "cardio", "strength", "flexibility"] as const;
 export const INTENSITIES = ["light", "medium", "hard"] as const;
 
 /** Which meal type fits the current local hour. */

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { z } from "zod";
 import { getViewer, type Viewer } from "@/lib/auth";
 import { isValidDateStr, todayIn } from "@/lib/dates";
@@ -80,7 +80,7 @@ export async function deleteProgram(programId: string) {
   const viewer = await coach();
   await viewer.supabase.from("programs").delete().eq("id", programId);
   revalidatePath("/coach/programs");
-  redirect("/coach/programs");
+  redirect("/coach/programs", RedirectType.replace);
 }
 
 export async function toggleProgramExercise(programId: string, day: number, exerciseId: string) {

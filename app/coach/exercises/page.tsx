@@ -1,7 +1,7 @@
 import { DeleteExerciseButton, ExerciseForm } from "@/components/coach/ExerciseForm";
 import { CATEGORY_ICON, Icon } from "@/components/Icon";
 import { TutorialButton } from "@/components/workout/TutorialButton";
-import { BackHeader, Card, cn, SOLID } from "@/components/ui";
+import { BackHeader, Card, CATEGORY_TILE, cn } from "@/components/ui";
 import { requireViewer } from "@/lib/auth";
 import { getExerciseCatalog } from "@/lib/data";
 import { exerciseMeta, exerciseName } from "@/lib/format";
@@ -10,7 +10,6 @@ import type { Exercise } from "@/lib/types";
 
 export const metadata = { title: "Katalog Latihan" };
 
-const TILE = { cardio: SOLID.mango, strength: SOLID.grape, flexibility: SOLID.mint } as const;
 
 export default async function ExercisesPage() {
   const viewer = await requireViewer("coach");
@@ -22,7 +21,7 @@ export default async function ExercisesPage() {
 
   const row = (x: Exercise, deletable: boolean) => (
     <li key={x.id} className="flex items-center gap-3 rounded-[20px] border border-line bg-card p-3">
-      <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl", TILE[x.category])}>
+      <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl", CATEGORY_TILE[x.category])}>
         <Icon name={CATEGORY_ICON[x.category]} size={20} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">

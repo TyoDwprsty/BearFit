@@ -3,11 +3,13 @@
 import { useEffect, useRef } from "react";
 import { Icon } from "@/components/Icon";
 import { useI18n } from "@/components/I18nProvider";
+import { useBackToClose } from "@/lib/use-back-nav";
 
 /** Full-screen photo viewer. */
 export function Lightbox({ src, onClose }: { src: string | null; onClose: () => void }) {
   const ref = useRef<HTMLDialogElement>(null);
   const { t } = useI18n();
+  useBackToClose(!!src, onClose);
 
   useEffect(() => {
     const el = ref.current;

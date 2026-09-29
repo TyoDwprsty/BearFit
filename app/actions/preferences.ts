@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getViewer, homeFor } from "@/lib/auth";
 import { LOCALE_COOKIE, normalizeLocale } from "@/lib/i18n";
@@ -32,7 +32,7 @@ export async function switchRole(role: Role) {
   const allowed = role === "coach" ? viewer.profile.is_coach : viewer.profile.is_member;
   if (!allowed) redirect(homeFor(viewer.profile));
   await viewer.supabase.from("profiles").update({ active_role: role }).eq("id", viewer.userId);
-  redirect(role === "coach" ? "/coach" : "/home");
+  redirect(role === "coach" ? "/coach" : "/home", RedirectType.replace);
 }
 
 /** Turn on the other role later (e.g. a member who becomes a coach). */
@@ -41,7 +41,7 @@ export async function enableRole(role: Role) {
   if (!viewer) redirect("/");
   const patch = role === "coach" ? { is_coach: true, active_role: "coach" } : { is_member: true, active_role: "member" };
   await viewer.supabase.from("profiles").update(patch).eq("id", viewer.userId);
-  redirect(role === "coach" ? "/coach" : "/home");
+  redirect(role === "coach" ? "/coach" : "/home", RedirectType.replace);
 }
 
 export async function updateProfileBasics(formData: FormData) {

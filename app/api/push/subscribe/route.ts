@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { getViewer } from "@/lib/auth";
+import { isPlaceholder, serverEnv } from "@/lib/env";
+import { createAdminClient } from "@/lib/supabase/server";
 
 const subSchema = z.object({
   endpoint: z.url(),
@@ -13,16 +15,23 @@ export async function POST(request: Request) {
   const parsed = subSchema.safeParse(await request.json().catch(() => ({})));
   if (!parsed.success) return Response.json({ error: "invalid_subscription" }, { status: 400 });
 
+  if (isPlaceholder(serverEnv.supabaseSecretKey)) return Response.json({ error: "push_not_configured" }, { status: 503 });
+
   const { endpoint, keys } = parsed.data;
-  // An endpoint belongs to one device; re-point it to the current user.
-  await viewer.supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
-  const { error } = await viewer.supabase.from("push_subscriptions").insert({
-    user_id: viewer.userId,
-    endpoint,
-    p256dh: keys.p256dh,
-    auth: keys.auth,
-    user_agent: request.headers.get("user-agent")?.slice(0, 250) ?? null,
-  });
+  // An endpoint belongs to one device; re-point it to the current user even if
+  // another account subscribed on this browser before (RLS would hide that row).
+  const { error } = await createAdminClient()
+    .from("push_subscriptions")
+    .upsert(
+      {
+        user_id: viewer.userId,
+        endpoint,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+        user_agent: request.headers.get("user-agent")?.slice(0, 250) ?? null,
+      },
+      { onConflict: "endpoint" },
+    );
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ ok: true });
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useOptimistic, useState, useTransition } from "react";
+import { useEffect, useOptimistic, useState, useTransition } from "react";
 import { deleteReminder, saveReminder, toggleReminder } from "@/app/actions/reminders";
 import { Icon, REMINDER_ICON } from "@/components/Icon";
 import { useConfirm, useToast } from "@/components/feedback/FeedbackProvider";
@@ -42,14 +42,22 @@ export function Switch({ on, onToggle, label: aria, disabled }: { on: boolean; o
   );
 }
 
-export function ReminderList({ reminders, userId }: { reminders: Reminder[]; userId?: string }) {
+/** Pre-filled "new reminder" form, e.g. from "Simpan & atur pengingat" on the workout page. */
+export type ReminderDraft = { kind: ReminderKind; label: string };
+
+export function ReminderList({ reminders, userId, draft }: { reminders: Reminder[]; userId?: string; draft?: ReminderDraft }) {
   const { t } = useI18n();
   const [, start] = useTransition();
   const [enabled, setEnabled] = useOptimistic(
     Object.fromEntries(reminders.map((r) => [r.id, r.enabled])) as Record<string, boolean>,
     (state, { id, on }: { id: string; on: boolean }) => ({ ...state, [id]: on }),
   );
-  const [editing, setEditing] = useState<Reminder | "new" | null>(null);
+  const [editing, setEditing] = useState<Reminder | "new" | null>(draft ? "new" : null);
+
+  // The draft opened the form once; drop it from the URL so back/reload don't reopen it.
+  useEffect(() => {
+    if (draft) window.history.replaceState(null, "", window.location.pathname);
+  }, [draft]);
 
   return (
     <>
@@ -93,20 +101,30 @@ export function ReminderList({ reminders, userId }: { reminders: Reminder[]; use
       </button>
 
       <Sheet open={editing !== null} onClose={() => setEditing(null)} title={editing === "new" ? t("rem.add") : t("rem.edit")}>
-        {editing !== null && <ReminderEditor reminder={editing === "new" ? null : editing} userId={userId} onDone={() => setEditing(null)} />}
+        {editing !== null && <ReminderEditor reminder={editing === "new" ? null : editing} draft={draft} userId={userId} onDone={() => setEditing(null)} />}
       </Sheet>
     </>
   );
 }
 
-function ReminderEditor({ reminder, userId, onDone }: { reminder: Reminder | null; userId?: string; onDone: () => void }) {
+function ReminderEditor({
+  reminder,
+  draft,
+  userId,
+  onDone,
+}: {
+  reminder: Reminder | null;
+  draft?: ReminderDraft;
+  userId?: string;
+  onDone: () => void;
+}) {
   const { t } = useI18n();
   const confirm = useConfirm();
   const toast = useToast();
   const [pending, start] = useTransition();
   useProgress(pending);
-  const [kind, setKind] = useState<ReminderKind>(reminder?.kind ?? "workout");
-  const [labelText, setLabel] = useState(reminder?.label ?? "");
+  const [kind, setKind] = useState<ReminderKind>(reminder?.kind ?? draft?.kind ?? "workout");
+  const [labelText, setLabel] = useState(reminder?.label ?? draft?.label ?? "");
   const [time, setTime] = useState(reminder ? hhmm(reminder.remind_time) : "07:00");
   const [days, setDays] = useState<Set<number>>(new Set(reminder?.days ?? [0, 1, 2, 3, 4, 5, 6]));
   const [every, setEvery] = useState<number | null>(reminder?.repeat_every_min ?? null);

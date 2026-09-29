@@ -1,43 +1,34 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
-import Link from "next/link";
-import { toggleExercise, toggleItemDone } from "@/app/actions/workout";
+import { toggleExercise } from "@/app/actions/workout";
 import { CATEGORY_ICON, Icon } from "@/components/Icon";
 import { useI18n } from "@/components/I18nProvider";
-import { cn, SOLID } from "@/components/ui";
+import { CATEGORY_TILE, cn } from "@/components/ui";
 import { TutorialButton } from "./TutorialButton";
-import { WorkoutTimer } from "./WorkoutTimer";
 import { CATEGORIES, exerciseMeta, exerciseName } from "@/lib/format";
 import type { DictKey } from "@/lib/i18n";
 import type { Exercise, ExerciseCategory, WorkoutItem } from "@/lib/types";
 
-const TILE: Record<ExerciseCategory, string> = { cardio: SOLID.mango, strength: SOLID.grape, flexibility: SOLID.mint };
-
 type Filter = "all" | ExerciseCategory;
 
 /**
- * Exercise picker (design: 05 · Pilih Latihan). Selecting an exercise adds it to
- * the day's plan; members can tick planned items as done.
+ * Coach's exercise picker (design: 05 · Pilih Latihan). Selecting an exercise adds it
+ * to the member's plan for the day; selecting it again removes it.
  */
 export function WorkoutPicker({
   memberId,
   date,
   catalog,
   items,
-  mode,
-  footer,
 }: {
   memberId: string;
   date: string;
   catalog: Exercise[];
   items: WorkoutItem[];
-  mode: "member" | "coach";
-  footer?: React.ReactNode;
 }) {
   const { t, locale } = useI18n();
   const [filter, setFilter] = useState<Filter>("all");
-  const [timing, setTiming] = useState<WorkoutItem | null>(null);
   const [, start] = useTransition();
 
   const [selected, toggleSelected] = useOptimistic(
@@ -49,89 +40,13 @@ export function WorkoutPicker({
       return next;
     },
   );
-  const [doneIds, setDone] = useOptimistic(
-    new Set(items.filter((i) => i.done_at).map((i) => i.id)),
-    (state, { id, done }: { id: string; done: boolean }) => {
-      const next = new Set(state);
-      if (done) next.add(id);
-      else next.delete(id);
-      return next;
-    },
-  );
 
   const visible = catalog.filter((x) => filter === "all" || x.category === filter);
   const chosen = catalog.filter((x) => selected.has(x.id));
   const minutes = chosen.reduce((a, x) => a + x.minutes, 0);
-  const doneCount = items.filter((i) => doneIds.has(i.id)).length;
-  const videoOf = (exerciseId: string | null) => catalog.find((x) => x.id === exerciseId)?.video_url ?? null;
-
-  const markDone = (id: string, done: boolean) =>
-    start(async () => {
-      setDone({ id, done });
-      await toggleItemDone(id, done);
-    });
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Planned items with done toggles */}
-      {mode === "member" && items.length > 0 && (
-        <section className="flex flex-col gap-2.5">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-[19px] font-semibold">{t("workout.plan")}</h2>
-            <span className="text-xs font-extrabold text-grape-d">{t("workout.progress", { a: doneCount, b: items.length })}</span>
-          </div>
-          {items.map((it) => {
-            const done = doneIds.has(it.id);
-            const video = videoOf(it.exercise_id);
-            return (
-              <div
-                key={it.id}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-[22px] border-2 p-3 transition",
-                  done ? "border-mint bg-mint-s" : "border-line bg-card",
-                )}
-              >
-                <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", TILE[it.category])}>
-                  <Icon name={CATEGORY_ICON[it.category]} size={22} />
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className={cn("text-[15px] font-bold", done && "line-through decoration-2 opacity-70")}>{exerciseName(it, locale)}</span>
-                  <span className="text-xs font-medium text-muted">
-                    {t(`cat.${it.category}` as DictKey)} · {exerciseMeta(it, t)}
-                  </span>
-                  {video && <TutorialButton url={video} title={exerciseName(it, locale)} className="self-start" />}
-                </span>
-                {!done && (
-                  <button
-                    type="button"
-                    onClick={() => setTiming(it)}
-                    aria-label={`${t("workout.start")}: ${exerciseName(it, locale)}`}
-                    className="flex h-11 shrink-0 items-center gap-1.5 rounded-2xl bg-grape px-3.5 text-[13px] font-extrabold text-on-grape transition active:scale-95"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                      <path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" />
-                    </svg>
-                    {t("workout.start")}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  aria-pressed={done}
-                  aria-label={`${t("workout.markDone")}: ${exerciseName(it, locale)}`}
-                  onClick={() => markDone(it.id, !done)}
-                  className={cn(
-                    "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 transition active:scale-90",
-                    done ? "border-mint bg-mint text-ink" : "border-line text-muted",
-                  )}
-                >
-                  <Icon name="check" size={18} strokeWidth={3} />
-                </button>
-              </div>
-            );
-          })}
-        </section>
-      )}
-
       <section className="flex flex-col gap-3">
         <h2 className="font-display text-[19px] font-semibold">{t("workout.catalog")}</h2>
         <div className="flex flex-wrap gap-2">
@@ -166,7 +81,7 @@ export function WorkoutPicker({
                   }
                   className="flex w-full items-center gap-3 p-3 text-left transition active:scale-[0.99]"
                 >
-                  <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", TILE[x.category])}>
+                  <span className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl", CATEGORY_TILE[x.category])}>
                     <Icon name={CATEGORY_ICON[x.category]} size={22} />
                   </span>
                   <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
@@ -201,25 +116,7 @@ export function WorkoutPicker({
           <span className="text-[15px] font-extrabold">{t("workout.selected", { n: chosen.length })}</span>
           <span className="text-xs font-medium">{t("workout.estimate", { m: minutes })}</span>
         </div>
-        {footer ??
-          (mode === "member" && (
-            <Link href="/reminders" className="flex min-h-[46px] items-center rounded-[14px] bg-mango px-4 text-[13px] font-extrabold text-ink">
-              {t("workout.saveReminder")}
-            </Link>
-          ))}
       </div>
-
-      {timing && (
-        <WorkoutTimer
-          item={timing}
-          videoUrl={videoOf(timing.exercise_id)}
-          onClose={() => setTiming(null)}
-          onDone={() => {
-            markDone(timing.id, true);
-            setTiming(null);
-          }}
-        />
-      )}
     </div>
   );
 }

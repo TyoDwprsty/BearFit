@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { ExitGuard } from "@/components/shell/ExitGuard";
 import { getViewer, homeFor } from "@/lib/auth";
 import { OnboardingForm } from "./OnboardingForm";
 
@@ -21,6 +22,7 @@ export default async function OnboardingPage({ searchParams }: PageProps<"/onboa
         next={next}
         locale={viewer.profile.locale}
       />
+      <ExitGuard />
     </main>
   );
 }

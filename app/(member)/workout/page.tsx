@@ -2,7 +2,7 @@ import { Beru } from "@/components/Beru";
 import { DatePickerButton } from "@/components/DatePickerButton";
 import { WeekStrip, type DayMark } from "@/components/WeekStrip";
 import { AskCoachCard } from "@/components/workout/AskCoachCard";
-import { WorkoutPicker } from "@/components/workout/WorkoutPicker";
+import { MemberWorkout } from "@/components/workout/MemberWorkout";
 import { Chip, PageTitle } from "@/components/ui";
 import { getActiveCoach, requireViewer } from "@/lib/auth";
 import { addDays, formatLongDate, isValidDateStr, todayIn, weekStart } from "@/lib/dates";
@@ -90,9 +90,13 @@ export default async function WorkoutPage({ searchParams }: PageProps<"/workout"
         </p>
       )}
 
-      {canAsk && coach && <AskCoachCard date={date} coachName={firstName(coach.full_name)} requested={requested} />}
-
-      <WorkoutPicker memberId={userId} date={date} catalog={catalog} items={plan.items} mode="member" />
+      <MemberWorkout
+        memberId={userId}
+        date={date}
+        catalog={catalog}
+        items={plan.items}
+        askCoach={canAsk && coach && <AskCoachCard date={date} coachName={firstName(coach.full_name)} requested={requested} />}
+      />
     </div>
   );
 }

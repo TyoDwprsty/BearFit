@@ -6,7 +6,8 @@ import { getActiveCoach, getViewer } from "@/lib/auth";
 import { formatLongDate, isValidDateStr } from "@/lib/dates";
 import { ensurePlanFromProgram, itemFromExercise } from "@/lib/data";
 import { notify } from "@/lib/notify";
-import type { Exercise } from "@/lib/types";
+import type { Exercise, WorkoutItem } from "@/lib/types";
+import { normalizeDose, type Dose } from "@/lib/workout-dose";
 
 async function viewerFor(memberId: string) {
   const viewer = await getViewer();
@@ -77,6 +78,37 @@ export async function toggleExercise(memberId: string, date: string, exerciseId:
   revalidate(memberId);
 }
 
+/** Add an exercise to the day's plan with the chosen dose (level preset or custom). */
+export async function addExercise(memberId: string, date: string, exerciseId: string, dose: Partial<Dose>) {
+  if (!isValidDateStr(date)) return { error: "invalid" as const };
+  const { viewer, planId } = await ensurePlan(memberId, date);
+  const db = viewer.supabase;
+  const { data: ex } = await db.from("exercises").select("*").eq("id", exerciseId).single<Exercise>();
+  if (!ex) return { error: "invalid" as const };
+  const { count } = await db.from("workout_items").select("id", { count: "exact", head: true }).eq("plan_id", planId);
+  const { error } = await db
+    .from("workout_items")
+    .insert({ ...itemFromExercise(ex, planId, count ?? 0, viewer.userId), ...normalizeDose(ex, dose) });
+  if (error) return { error: "failed" as const };
+  revalidate(memberId);
+  return { ok: true as const };
+}
+
+/** Change how much of a planned exercise (sets/reps/duration). */
+export async function updateItemDose(itemId: string, dose: Partial<Dose>) {
+  const viewer = await getViewer();
+  if (!viewer) redirect("/");
+  const db = viewer.supabase;
+  const { data } = await db.from("workout_items").select("*, exercises(*), workout_plans(member_id)").eq("id", itemId).single();
+  if (!data) return { error: "invalid" as const };
+  const row = data as WorkoutItem & { exercises: Exercise | null; workout_plans: { member_id: string } | null };
+  // Scale from the catalog entry; fall back to the item itself if that was deleted.
+  const { error } = await db.from("workout_items").update(normalizeDose(row.exercises ?? row, dose)).eq("id", itemId);
+  if (error) return { error: "failed" as const };
+  revalidate(row.workout_plans?.member_id ?? viewer.userId);
+  return { ok: true as const };
+}
+
 export async function toggleItemDone(itemId: string, done: boolean) {
   const viewer = await getViewer();
   if (!viewer) redirect("/");
@@ -95,6 +127,7 @@ export async function removeItem(itemId: string) {
   if (!viewer) redirect("/");
   await viewer.supabase.from("workout_items").delete().eq("id", itemId);
   revalidatePath("/workout");
+  revalidatePath("/home");
   revalidatePath("/coach", "layout");
 }
 

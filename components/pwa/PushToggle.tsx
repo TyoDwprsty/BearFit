@@ -64,19 +64,29 @@ export function PushToggle({ variant = "row" }: { variant?: "row" | "card" }) {
       setPermission(perm);
       if (perm !== "granted") return;
       const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(env.vapidPublicKey),
-      });
+      const options = { userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(env.vapidPublicKey.trim()) };
+      let sub: PushSubscription;
+      try {
+        sub = await reg.pushManager.subscribe(options);
+      } catch (err) {
+        // A subscription made with an older VAPID key blocks a new one.
+        const old = await reg.pushManager.getSubscription();
+        if (!old) throw err;
+        await old.unsubscribe();
+        sub = await reg.pushManager.subscribe(options);
+      }
       const res = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sub.toJSON()),
       });
-      if (!res.ok) throw new Error("subscribe failed");
+      if (!res.ok) {
+        const { error } = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(`${res.status} ${error ?? ""}`.trim());
+      }
       setSubscribed(true);
-    } catch {
-      setMessage(t("common.error"));
+    } catch (err) {
+      setMessage(`${t("common.error")} (${err instanceof Error ? err.message : String(err)})`);
     } finally {
       setBusy(false);
     }

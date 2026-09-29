@@ -4,12 +4,11 @@ import { useOptimistic, useTransition } from "react";
 import { toggleProgramExercise } from "@/app/actions/coach";
 import { CATEGORY_ICON, Icon } from "@/components/Icon";
 import { useI18n } from "@/components/I18nProvider";
-import { cn, SOLID } from "@/components/ui";
+import { CATEGORY_TILE, cn } from "@/components/ui";
 import { exerciseMeta, exerciseName } from "@/lib/format";
 import type { DictKey } from "@/lib/i18n";
 import type { Exercise } from "@/lib/types";
 
-const TILE = { cardio: SOLID.mango, strength: SOLID.grape, flexibility: SOLID.mint } as const;
 
 export function ProgramDayPicker({ programId, day, catalog, selectedIds }: { programId: string; day: number; catalog: Exercise[]; selectedIds: string[] }) {
   const { t, locale } = useI18n();
@@ -46,7 +45,7 @@ export function ProgramDayPicker({ programId, day, catalog, selectedIds }: { pro
                 on ? "border-grape bg-grape-s" : "border-line bg-card",
               )}
             >
-              <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl", TILE[x.category])}>
+              <span className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl", CATEGORY_TILE[x.category])}>
                 <Icon name={CATEGORY_ICON[x.category]} size={20} />
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">

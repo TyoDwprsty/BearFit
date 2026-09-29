@@ -52,7 +52,7 @@ export default async function CoachPlanPage({ params, searchParams }: PageProps<
       )}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
-        <WorkoutPicker memberId={id} date={date} catalog={catalog} items={plan.items} mode="coach" footer={null} />
+        <WorkoutPicker memberId={id} date={date} catalog={catalog} items={plan.items} />
         <div className="lg:sticky lg:top-10">
           <PublishPlan memberId={id} date={date} note={plan.plan?.note ?? ""} />
         </div>

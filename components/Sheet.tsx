@@ -3,21 +3,26 @@
 import { useEffect, useRef } from "react";
 import { Icon } from "@/components/Icon";
 import { useI18n } from "@/components/I18nProvider";
+import { useBackToClose } from "@/lib/use-back-nav";
 
 /** Bottom sheet on phones, centered dialog on desktop. Uses native <dialog>. */
 export function Sheet({
   open,
   onClose,
   title,
+  onBack,
   children,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
+  /** Back gesture / Esc inside the sheet (e.g. to a previous step). Return true to keep it open. */
+  onBack?: () => boolean;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const { t } = useI18n();
+  useBackToClose(open, onClose);
 
   useEffect(() => {
     const el = ref.current;
@@ -29,6 +34,10 @@ export function Sheet({
   return (
     <dialog
       ref={ref}
+      onCancel={(e) => {
+        // Android's back gesture reaches an open <dialog> as `cancel` before any history change.
+        if (e.target === e.currentTarget && onBack?.()) e.preventDefault();
+      }}
       onClose={(e) => {
         // React bubbles `close` from nested sheets (e.g. a picker inside a form sheet).
         if (e.target === e.currentTarget) onClose();

@@ -3,21 +3,30 @@ import { Beru } from "@/components/Beru";
 import { Icon } from "@/components/Icon";
 import { PushToggle } from "@/components/pwa/PushToggle";
 import { AlarmSettings } from "@/components/reminders/AlarmSettings";
-import { ReminderList } from "@/components/reminders/ReminderList";
+import { ReminderList, type ReminderDraft } from "@/components/reminders/ReminderList";
 import { PageTitle, SectionTitle } from "@/components/ui";
 import { requireViewer } from "@/lib/auth";
 import { formatClock } from "@/lib/dates";
 import { reminderDays, relativeUntil } from "@/lib/format";
 import { makeT } from "@/lib/i18n";
 import { nextOccurrence } from "@/lib/reminders";
-import type { Reminder } from "@/lib/types";
+import type { Reminder, ReminderKind } from "@/lib/types";
 
 export const metadata = { title: "Pengingat" };
 
-export default async function RemindersPage() {
+const KINDS: ReminderKind[] = ["workout", "water", "meal", "stretch", "recap", "custom"];
+
+export default async function RemindersPage({ searchParams }: PageProps<"/reminders">) {
   const viewer = await requireViewer("member");
   const { supabase, userId, profile } = viewer;
   const t = makeT(profile.locale);
+  // ?add=workout&label=Padel opens the "new reminder" form pre-filled.
+  const params = await searchParams;
+  const addKind = KINDS.find((k) => k === params.add);
+  const draft: ReminderDraft | undefined = addKind && {
+    kind: addKind,
+    label: typeof params.label === "string" ? params.label.slice(0, 80) : "",
+  };
 
   const { data } = await supabase.from("reminders").select("*").eq("user_id", userId).order("remind_time");
   const reminders = (data ?? []) as Reminder[];
@@ -57,7 +66,7 @@ export default async function RemindersPage() {
           <PushToggle variant="card" />
 
           <SectionTitle>{t("rem.schedule")}</SectionTitle>
-          <ReminderList reminders={reminders} />
+          <ReminderList reminders={reminders} draft={draft} />
         </div>
 
         <div className="flex flex-col gap-4 lg:sticky lg:top-10">

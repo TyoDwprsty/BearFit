@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, RedirectType } from "next/navigation";
 import { z } from "zod";
 import { getViewer } from "@/lib/auth";
 import { LOCALE_COOKIE, makeT } from "@/lib/i18n";
@@ -120,6 +120,7 @@ export async function completeOnboarding(_prev: OnboardingState, formData: FormD
   const store = await cookies();
   store.set(LOCALE_COOKIE, d.locale, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
 
-  if (d.next && d.next.startsWith("/") && !d.next.startsWith("//")) redirect(d.next);
-  redirect(active_role === "coach" ? "/coach" : "/home");
+  // Replace: back from home must not land on the (finished) onboarding form.
+  if (d.next && d.next.startsWith("/") && !d.next.startsWith("//")) redirect(d.next, RedirectType.replace);
+  redirect(active_role === "coach" ? "/coach" : "/home", RedirectType.replace);
 }

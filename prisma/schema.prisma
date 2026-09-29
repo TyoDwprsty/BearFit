@@ -59,6 +59,7 @@ enum PortionSize {
 }
 
 enum ExerciseCategory {
+  sport
   cardio
   strength
   flexibility

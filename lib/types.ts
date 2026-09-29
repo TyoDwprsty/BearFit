@@ -2,7 +2,7 @@ export type Role = "member" | "coach";
 export type Locale = "id" | "en";
 export type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 export type Portion = "small" | "medium" | "large";
-export type ExerciseCategory = "cardio" | "strength" | "flexibility";
+export type ExerciseCategory = "sport" | "cardio" | "strength" | "flexibility";
 export type Intensity = "light" | "medium" | "hard";
 export type LinkStatus = "pending" | "active" | "rejected" | "ended";
 export type ReminderKind = "workout" | "water" | "meal" | "stretch" | "recap" | "custom";
@@ -195,6 +195,13 @@ export interface AppNotification {
   url: string | null;
   read_at: string | null;
   created_at: string;
+}
+
+/** Beru's first look at a meal photo, confirmed by the user before counting calories. */
+export interface MealGuess {
+  is_food: boolean;
+  name: string;
+  portion: Portion;
 }
 
 export interface NutritionEstimate {

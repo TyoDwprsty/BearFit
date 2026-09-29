@@ -19,6 +19,9 @@ export const SOLID: Record<Accent, string> = {
   sun: "bg-sun text-ink",
 };
 
+/** Icon tile colour per workout category. */
+export const CATEGORY_TILE = { sport: SOLID.sky, cardio: SOLID.mango, strength: SOLID.grape, flexibility: SOLID.mint } as const;
+
 /** Soft accent surface with deep text (chips, stat tiles). */
 export const SOFT: Record<Accent, string> = {
   mango: "bg-mango-s text-mango-d",

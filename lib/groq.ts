@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { serverEnv } from "@/lib/env";
-import type { Locale, NutritionEstimate } from "@/lib/types";
+import type { Locale, MealGuess, NutritionEstimate } from "@/lib/types";
 
 const TAGS = ["veg", "protein", "carbs", "fruit", "fiber", "fried", "sweet"] as const;
 
@@ -16,8 +16,24 @@ const estimateSchema = z.object({
   note: z.string().catch(""),
 });
 
+const guessSchema = z.object({
+  is_food: z.boolean().catch(true),
+  name: z.string().catch(""),
+  portion: z.enum(["small", "medium", "large"]).catch("medium"),
+});
+
+const GUESS_PROMPT = `You are a food recognition assistant for an Indonesian diet-tracking app.
+Identify the meal in the photo. Do NOT estimate calories.
+Respond with ONLY a JSON object:
+{"is_food": boolean, "name": string, "portion": "small"|"medium"|"large"}
+- "name" lists the dish and every visible component, comma-separated and specific (e.g. "Nasi goreng ayam, sambal, sosis, telur ceplok"). Max 120 characters.
+- "portion" compares the amount to a typical Indonesian home/warung serving.
+- If the image is not food, return is_food false and an empty name.
+- "name" must be written in the requested language.`;
+
 const SYSTEM_PROMPT = `You are a nutrition assistant for an Indonesian diet-tracking app.
 Estimate the nutrition of the WHOLE meal in the photo (all visible items, typical Indonesian home/warung portions unless the portion hint says otherwise).
+The user has confirmed what the meal contains: when their description disagrees with the photo (e.g. tofu instead of sausage), trust the description and the portion.
 Respond with ONLY a JSON object:
 {"name": string, "calories": number, "protein_g": number, "carbs_g": number, "fat_g": number,
  "tags": string[], "confidence": "low"|"medium"|"high", "note": string}
@@ -26,16 +42,18 @@ Respond with ONLY a JSON object:
 - If the image is not food, return calories 0 and confidence "low".
 - "name" and "note" must be written in the requested language; "note" is one short sentence.`;
 
-/** Asks a Groq vision model to estimate calories & macros from a meal photo. */
-export async function estimateNutrition(input: {
+interface VisionInput {
   imageDataUrl: string;
   caption?: string;
   portion?: string;
   locale: Locale;
-}): Promise<NutritionEstimate> {
+}
+
+/** Sends the photo + hints to the Groq vision model and returns its JSON reply. */
+async function askVision(systemPrompt: string, input: VisionInput): Promise<unknown> {
   const userText = [
     `Language: ${input.locale === "en" ? "English" : "Bahasa Indonesia"}.`,
-    input.portion ? `Portion hint: ${input.portion}.` : "",
+    input.portion ? `Portion: ${input.portion}.` : "",
     input.caption ? `User description: ${input.caption.slice(0, 300)}` : "",
   ]
     .filter(Boolean)
@@ -55,7 +73,7 @@ export async function estimateNutrition(input: {
       reasoning_effort: "none",
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         {
           role: "user",
           content: [
@@ -76,7 +94,18 @@ export async function estimateNutrition(input: {
   // Defensive: drop any <think> block and keep only the outermost JSON object.
   const cleaned = content.replace(/<think>[\s\S]*?<\/think>/g, "");
   const jsonText = cleaned.slice(cleaned.indexOf("{"), cleaned.lastIndexOf("}") + 1) || "{}";
-  const parsed = estimateSchema.parse(JSON.parse(jsonText));
+  return JSON.parse(jsonText);
+}
+
+/** Step 1: what is on the plate and how big is the portion (no calories yet). */
+export async function guessMeal(input: VisionInput): Promise<MealGuess> {
+  const parsed = guessSchema.parse(await askVision(GUESS_PROMPT, input));
+  return { ...parsed, name: parsed.name.slice(0, 200) };
+}
+
+/** Step 2: calories & macros for the meal the user confirmed. */
+export async function estimateNutrition(input: VisionInput): Promise<NutritionEstimate> {
+  const parsed = estimateSchema.parse(await askVision(SYSTEM_PROMPT, input));
   return {
     ...parsed,
     calories: Math.round(parsed.calories / 10) * 10,

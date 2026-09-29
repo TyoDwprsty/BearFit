@@ -8,6 +8,7 @@ import { useI18n } from "@/components/I18nProvider";
 import { cn } from "@/components/ui";
 import { createBeeper } from "@/lib/alarm-sound";
 import { exerciseMeta, exerciseName } from "@/lib/format";
+import { useBackToClose } from "@/lib/use-back-nav";
 import type { WorkoutItem } from "@/lib/types";
 import { TutorialButton } from "./TutorialButton";
 
@@ -164,6 +165,9 @@ export function WorkoutTimer({
       setPaused(false);
     }
   };
+
+  // Back gesture = the stop button (asks first while the timer runs).
+  useBackToClose(true, stop);
 
   const seg = segments[segIndex];
   const name = exerciseName(item, locale);

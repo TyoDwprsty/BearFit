@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { homeFor } from "@/lib/auth";
 import { LOCALE_COOKIE } from "@/lib/i18n";
 import type { Profile } from "@/lib/types";
-import { AUTH_INTENT_COOKIE, requestOrigin } from "@/lib/url";
+import { AUTH_INTENT_COOKIE, FRESH_SIGNIN_COOKIE, requestOrigin } from "@/lib/url";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -38,6 +38,8 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(`${origin}${target}`);
   response.cookies.delete(AUTH_INTENT_COOKIE);
+  // Read (and cleared) by useExitGuard on the first page, so it can't be httpOnly.
+  response.cookies.set(FRESH_SIGNIN_COOKIE, "1", { path: "/", maxAge: 60 * 5, sameSite: "lax" });
   if (profile?.locale) {
     response.cookies.set(LOCALE_COOKIE, profile.locale, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
   }

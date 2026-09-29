@@ -5,6 +5,7 @@ import { AlarmWatcher } from "@/components/pwa/AlarmWatcher";
 import type { Viewer } from "@/lib/auth";
 import { makeT } from "@/lib/i18n";
 import type { Reminder, Role } from "@/lib/types";
+import { ExitGuard } from "./ExitGuard";
 import { BottomNav, SideNavLinks } from "./NavLinks";
 import { RoleSwitch } from "./RoleSwitch";
 
@@ -67,6 +68,7 @@ export async function AppShell({
       </main>
 
       <BottomNav mode={mode} badges={badges} />
+      <ExitGuard />
       {mode === "member" && <AlarmWatcher reminders={reminders} timezone={profile.timezone} />}
     </div>
   );

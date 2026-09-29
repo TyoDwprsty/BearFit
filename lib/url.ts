@@ -1,5 +1,7 @@
 /** Short-lived cookie carrying the welcome-screen choice (role/next) through Google OAuth. */
 export const AUTH_INTENT_COOKIE = "bf_auth_intent";
+/** Set by the OAuth callback; tells the first app page to keep back from returning to Google. */
+export const FRESH_SIGNIN_COOKIE = "bf_fresh_signin";
 
 /**
  * Public origin of the current request, e.g. `https://bearfit.vercel.app`.
